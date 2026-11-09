@@ -18,8 +18,20 @@ local section = tab:Section({Name = 'Preparation'})
 section:Toggle({Name = 'Example', Default = false, Callback = function(value) print(value) end})
 ```
 
-Early prototype: includes single/multi-select dropdowns, notifications, confirmation dialogs, segmented choices, palette-based color selection, keyboard keybinds, dividers, information, paragraphs, progress bars, sliders, buttons, toggles and inputs. Callbacks run asynchronously. The top-right button hides the window; use the floating book button or Right Shift to reopen it. The library does not yet have config persistence, configurable keybinds, or production integration. Test on your executor and device; Roblox asset access can vary.
+Early prototype: includes tabs and subtabs, single/multi-select dropdowns, notifications, confirmation dialogs, segmented choices, preset color selection, keyboard keybinds, checkboxes, steppers, status indicators, dividers, information, paragraphs, progress bars, sliders, buttons, toggles and inputs. Callbacks run asynchronously. The top-right button hides the window; use the floating book button or Right Shift to reopen it. The library does not yet have config persistence, configurable keybinds, or production integration. Test on your executor and device; Roblox asset access can vary.
 
 Lucide asset ID mappings were adapted from [OasisUI](https://github.com/Mold53/OasisUI), which generates its subset from [Footagesus/Icons](https://github.com/Footagesus/Icons). Lucide artwork is by [Lucide](https://lucide.dev/). See the accompanying license files. The icons rely on third-party Roblox assets and may be unavailable in some environments; navigation icons have letter fallbacks.
 
 The illustrated background is AI-generated for Fable. It loads asynchronously from this repository using executor `writefile` and `getcustomasset` (or `getsynasset`), and writes `fable-ui-background-v1.jpg` to the executor workspace. If these APIs are unavailable, or the image cannot be fetched, the dark gradient remains. A Roblox image asset can alternatively be passed as `BackgroundImage` in `CreateWindow`. The palette selector is not a full HSV picker. Keybinds require a physical keyboard.
+
+## Subtabs
+
+```lua
+local page = tab:SubTab({Name = "Essentials"})
+local section = page:Section({Name = "Options"})
+section:Checkbox({Name = "Example", Default = true, Callback = function(value) print(value) end})
+section:Stepper({Name = "Count", Min = 0, Max = 10, Step = 1, Default = 3})
+page:Select()
+```
+
+Create subtabs before adding their sections. A tab can still use `tab:Section(...)` directly. `page:Select()` selects both its parent tab and the subtab.
