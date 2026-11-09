@@ -425,8 +425,9 @@ function Library:CreateWindow(options)
         tab.Indicator=create('Frame',{AnchorPoint=Vector2.new(0,.5),Position=UDim2.new(0,0,.5,0),Size=UDim2.fromOffset(3,4),BackgroundColor3=palette.gold,BackgroundTransparency=1,BorderSizePixel=0},tab.Nav);corner(tab.Indicator,2)
         tab.Nav.MouseEnter:Connect(function() if window.Active ~= tab then animate(tab.Nav,{BackgroundTransparency = .5}) end end)
         tab.Nav.MouseLeave:Connect(function() if window.Active ~= tab then animate(tab.Nav,{BackgroundTransparency = 1}) end end)
+        tab.Layer=create('CanvasGroup',{Size=UDim2.fromScale(1,1),BackgroundTransparency=1,BorderSizePixel=0,Visible=false,GroupTransparency=0},content)
         tab.Page = create('ScrollingFrame', {Size = UDim2.fromScale(1,1), BackgroundTransparency = 1, BorderSizePixel = 0,
-            Visible = false, ScrollBarThickness = 3, ScrollBarImageColor3 = palette.gold, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, content)
+            ScrollBarThickness = 3, ScrollBarImageColor3 = palette.gold, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, tab.Layer)
         watchScroll(tab.Page)
         padding(tab.Page, 22, 22, 25, 22)
         create('UIListLayout', {Padding = UDim.new(0,12), SortOrder = Enum.SortOrder.LayoutOrder}, tab.Page)
@@ -439,7 +440,8 @@ function Library:CreateWindow(options)
             if not table.find(self.Tabs,selected) then return end
             local previous = self.Active
             for _, other in ipairs(self.Tabs) do
-                local active = other == selected; other.Page.Visible = active
+                local active = other == selected; other.Layer.Visible = active
+                if not active and other.Transition then other.Transition:Cancel(); other.Transition=nil end
                 animate(other.Nav, {BackgroundTransparency = active and 0 or 1})
                 animate(other.Caption, {TextColor3 = active and palette.parchment or palette.muted})
                 animate(other.Image, {ImageColor3 = active and palette.gold or palette.muted})
@@ -447,10 +449,14 @@ function Library:CreateWindow(options)
             end
             self.Active = selected
             if previous ~= selected then
-                local from=table.find(self.Tabs,previous) or 0
-                local to=table.find(self.Tabs,selected) or 0
-                selected.Page.Position=UDim2.fromOffset(options.ReducedMotion and 0 or (to>=from and 14 or -14),0)
-                animate(selected.Page,{Position=UDim2.fromOffset(0,0)})
+                if selected.Transition then selected.Transition:Cancel() end
+                if options.ReducedMotion or not previous then
+                    selected.Layer.GroupTransparency=0;selected.Layer.Position=UDim2.fromOffset(0,0)
+                else
+                    selected.Layer.GroupTransparency=.32;selected.Layer.Position=UDim2.fromOffset(0,6)
+                    selected.Transition=TweenService:Create(selected.Layer,TweenInfo.new(.22,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{GroupTransparency=0,Position=UDim2.fromOffset(0,0)})
+                    selected.Transition:Play()
+                end
             end
         end
         tab.Nav.Activated:Connect(function() window:SelectTab(tab) end)
@@ -804,19 +810,23 @@ function Library:CreateWindow(options)
             end
             local sub={Name=subSpec.Name or 'Page',Section=self.Section,Columns=self.Columns}
             sub.Button=button(self.SubBar,sub.Name);sub.Button.Size=UDim2.fromOffset(math.clamp(#sub.Name*8+32,90,180),33);sub.Button.TextSize=12;sub.Button.BackgroundColor3=Color3.fromRGB(102,71,42);corner(sub.Button,5)
-            sub.Page=create('Frame',{Name='SubPage',Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,Visible=false},self.Page)
+            sub.Page=create('CanvasGroup',{Name='SubPage',Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,GroupTransparency=0,Visible=false},self.Page)
             create('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},sub.Page)
-            sub.Scale=create('UIScale',{Scale=1},sub.Page)
             table.insert(self.SubTabs,sub)
             function self:SelectSubTab(selected)
                 if not table.find(self.SubTabs,selected) then return end
                 for _,item in ipairs(self.SubTabs) do
                     local active=item==selected;item.Page.Visible=active
+                    if not active and item.Transition then item.Transition:Cancel();item.Transition=nil end
                     animate(item.Button,{BackgroundTransparency=active and 0 or 1,TextColor3=active and palette.parchment or palette.muted})
                 end
-                if self.ActiveSubTab ~= selected and not options.ReducedMotion then
-                    selected.Scale.Scale=.975
-                    TweenService:Create(selected.Scale,TweenInfo.new(.2,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Scale=1}):Play()
+                if self.ActiveSubTab ~= selected then
+                    if selected.Transition then selected.Transition:Cancel() end
+                    if not options.ReducedMotion and self.ActiveSubTab then
+                        selected.Page.GroupTransparency=.35
+                        selected.Transition=TweenService:Create(selected.Page,TweenInfo.new(.18,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{GroupTransparency=0})
+                        selected.Transition:Play()
+                    else selected.Page.GroupTransparency=0 end
                 end
                 self.ActiveSubTab=selected
             end
@@ -831,7 +841,7 @@ function Library:CreateWindow(options)
     responsive()
     return window
 end
-local window=Library:CreateWindow({Title='FABLE',Subtitle='INTERACTION STUDY / DEMO'})
+local window=Library:CreateWindow({Title='FABLE',Subtitle='SOFT TRANSITIONS / DEMO'})
 local state={farm=false,target='Closest',titanHits=3,bossHits=10,hover=150,reload=false,refill=false}
 local controls={}
 local outcome, plan, recoveryNote
