@@ -408,48 +408,83 @@ function Library:CreateWindow(options)
                 return frame
             end
             function section:Toggle(spec2)
-                local value = spec2.Default == true; local frame = row(spec2.Name,spec2.Description,48)
-                local control = button(frame,''); control.AnchorPoint = Vector2.new(1,.5); control.Position = UDim2.new(1,0,.5,0); control.Size = UDim2.fromOffset(40,22); corner(control,11); stroke(control,palette.line,.1)
-                local knob = create('Frame',{Size = UDim2.fromOffset(14,14), Position = UDim2.fromOffset(4,4), BackgroundColor3 = palette.parchment, BorderSizePixel = 0},control); corner(knob,7)
+                local value = spec2.Default == true
+                local frame = row(spec2.Name, spec2.Description, 54)
+                -- The clickable area is larger than the visible switch for touch use.
+                local hit = button(frame, '')
+                hit.AnchorPoint = Vector2.new(1,.5); hit.Position = UDim2.new(1,0,.5,0); hit.Size = UDim2.fromOffset(94,48)
+                local state = label(hit,'',9,palette.muted,Enum.Font.GothamBold)
+                state.Position=UDim2.fromOffset(0,0); state.Size=UDim2.fromOffset(33,48); state.TextXAlignment=Enum.TextXAlignment.Right
+                local track = create('Frame',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-2,.5,0),Size=UDim2.fromOffset(48,25),BackgroundColor3=palette.elevated,BorderSizePixel=0},hit)
+                corner(track,13)
+                local border=create('UIStroke',{Color=palette.line,Transparency=.1,Thickness=1},track)
+                local inset=create('Frame',{Position=UDim2.fromOffset(3,3),Size=UDim2.new(1,-6,1,-6),BackgroundColor3=Color3.fromRGB(18,18,20),BackgroundTransparency=.55,BorderSizePixel=0},track);corner(inset,10)
+                local knob=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.new(0,12,.5,0),Size=UDim2.fromOffset(19,19),BackgroundColor3=Color3.fromRGB(210,197,172),BorderSizePixel=0},track);corner(knob,10)
+                create('UIStroke',{Color=Color3.fromRGB(245,222,177),Transparency=.55,Thickness=1},knob)
+                local seal=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(5,5),Rotation=45,BackgroundColor3=Color3.fromRGB(96,79,61),BorderSizePixel=0},knob);corner(seal,1)
                 local function render()
-                    animate(control,{BackgroundColor3 = value and palette.gold or palette.elevated})
-                    animate(knob,{Position = UDim2.fromOffset(value and 22 or 4,4)})
+                    state.Text = value and 'ON' or 'OFF'
+                    animate(state,{TextColor3=value and palette.gold or palette.muted})
+                    animate(track,{BackgroundColor3=value and Color3.fromRGB(130,96,57) or palette.elevated})
+                    animate(border,{Color=value and palette.gold or palette.line,Transparency=value and .05 or .15})
+                    animate(knob,{Position=UDim2.new(0,value and 36 or 12,.5,0),BackgroundColor3=value and Color3.fromRGB(245,218,165) or Color3.fromRGB(184,177,161)})
+                    animate(seal,{BackgroundColor3=value and Color3.fromRGB(143,96,46) or Color3.fromRGB(96,86,76)})
                 end
-                local api = {}; function api:Set(v, silent) value = v == true; render(); if not silent then fire(spec2.Callback,value) end end; function api:Get() return value end
-                control.Activated:Connect(function() api:Set(not value) end); render(); return api
+                local api={}; function api:Set(v,silent) value=v==true; render(); if not silent then fire(spec2.Callback,value) end end; function api:Get() return value end
+                hit.MouseEnter:Connect(function() animate(border,{Transparency=0}) end)
+                hit.MouseLeave:Connect(render)
+                hit.Activated:Connect(function() api:Set(not value) end)
+                render(); return api
             end
             function section:Button(spec2)
-                local frame = row(spec2.Name,spec2.Description,48); local control = button(frame,spec2.Action or 'OPEN')
-                control.AnchorPoint = Vector2.new(1,.5); control.Position = UDim2.new(1,0,.5,0); control.Size = UDim2.fromOffset(75,30); control.BackgroundColor3 = palette.elevated; control.BackgroundTransparency = 0; control.TextColor3 = palette.gold; control.TextSize = 10; control.Font = Enum.Font.GothamBold; corner(control,5); stroke(control,palette.line)
-                control.MouseEnter:Connect(function() animate(control,{BackgroundColor3 = Color3.fromRGB(65,51,41)}) end)
-                control.MouseLeave:Connect(function() animate(control,{BackgroundColor3 = palette.elevated}) end)
+                local frame = row(spec2.Name,spec2.Description,54)
+                local control = button(frame,''); control.AnchorPoint=Vector2.new(1,.5); control.Position=UDim2.new(1,0,.5,0); control.Size=UDim2.fromOffset(104,38)
+                control.BackgroundColor3=Color3.fromRGB(47,40,35); control.BackgroundTransparency=0; corner(control,6)
+                local outline=create('UIStroke',{Color=palette.gold,Transparency=.48,Thickness=1},control)
+                local caption=label(control,spec2.Action or 'OPEN',10,palette.parchment,Enum.Font.GothamBold); caption.Position=UDim2.fromOffset(11,0); caption.Size=UDim2.new(1,-30,1,0); caption.TextTruncate=Enum.TextTruncate.AtEnd
+                local arrow=icon(control,'arrow-right','>'); arrow.AnchorPoint=Vector2.new(1,.5); arrow.Position=UDim2.new(1,-9,.5,0); arrow.Size=UDim2.fromOffset(14,14)
+                control.MouseEnter:Connect(function() animate(control,{BackgroundColor3=Color3.fromRGB(76,58,40)}); animate(outline,{Transparency=.1}) end)
+                control.MouseLeave:Connect(function() animate(control,{BackgroundColor3=Color3.fromRGB(47,40,35)}); animate(outline,{Transparency=.48}) end)
                 control.Activated:Connect(function() fire(spec2.Callback) end); return control
             end
             function section:Slider(spec2)
-                local min, max = spec2.Min or 0, spec2.Max or 100; assert(max > min, 'Slider max must exceed min')
-                local step = spec2.Step or 1; assert(step > 0, 'Slider step must be positive')
-                local value = math.clamp(spec2.Default or min,min,max); local frame = row(spec2.Name,spec2.Description,70)
-                local amount = label(frame,'',12,palette.gold,Enum.Font.GothamBold); amount.Position = UDim2.new(1,-80,0,1); amount.Size = UDim2.fromOffset(80,20); amount.TextXAlignment = Enum.TextXAlignment.Right
-                local track = button(frame,''); track.Position = UDim2.new(0,0,1,-19); track.Size = UDim2.new(1,0,0,16); track.BackgroundColor3 = palette.elevated; track.BackgroundTransparency = 0; corner(track,8)
-                local fill = create('Frame',{Size = UDim2.fromScale(0,1), BackgroundColor3 = palette.gold, BorderSizePixel = 0},track); corner(fill,8)
-                local api = {}; function api:Set(v,silent)
-                    local nextValue = math.clamp(min + math.floor(((tonumber(v) or min)-min)/step+.5)*step,min,max)
-                    local changed = nextValue ~= value; value = nextValue; amount.Text = tostring(value)
-                    animate(fill,{Size = UDim2.fromScale((value-min)/(max-min),1)})
+                local min,max=spec2.Min or 0,spec2.Max or 100; assert(max>min,'Slider max must exceed min')
+                local step=spec2.Step or 1; assert(step>0,'Slider step must be positive')
+                local value=math.clamp(spec2.Default or min,min,max); local frame=row(spec2.Name,spec2.Description,92)
+                local badge=create('Frame',{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.fromOffset(81,27),BackgroundColor3=Color3.fromRGB(48,39,31),BorderSizePixel=0},frame);corner(badge,5);stroke(badge,palette.gold,.55)
+                local amount=label(badge,'',12,palette.parchment,Enum.Font.GothamBold); amount.Size=UDim2.fromScale(1,1); amount.TextXAlignment=Enum.TextXAlignment.Center
+                -- The rail is thin, but its invisible input area remains finger-sized.
+                local hit=button(frame,''); hit.Position=UDim2.new(0,0,0,43); hit.Size=UDim2.new(1,0,0,40)
+                local rail=create('Frame',{Position=UDim2.new(0,10,.5,-3),Size=UDim2.new(1,-20,0,6),BackgroundColor3=Color3.fromRGB(18,18,20),BorderSizePixel=0},hit);corner(rail,4);stroke(rail,palette.line,.2)
+                local fill=create('Frame',{Size=UDim2.fromScale(0,1),BackgroundColor3=Color3.new(1,1,1),BorderSizePixel=0},rail);corner(fill,4);gradient(fill,Color3.fromRGB(128,89,52),Color3.fromRGB(229,194,130),0)
+                local thumb=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(0,.5),Size=UDim2.fromOffset(20,20),BackgroundColor3=Color3.fromRGB(48,37,30),BorderSizePixel=0},rail);corner(thumb,10);stroke(thumb,palette.gold,.05)
+                local gem=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(8,8),Rotation=45,BackgroundColor3=Color3.fromRGB(236,206,149),BorderSizePixel=0},thumb);corner(gem,2)
+                local low=label(frame,tostring(min),10,palette.muted); low.Position=UDim2.new(0,0,1,-14); low.Size=UDim2.fromOffset(55,14)
+                local high=label(frame,tostring(max),10,palette.muted); high.AnchorPoint=Vector2.new(1,0); high.Position=UDim2.new(1,0,1,-14); high.Size=UDim2.fromOffset(55,14); high.TextXAlignment=Enum.TextXAlignment.Right
+                local api={}; function api:Set(v,silent)
+                    local number=tonumber(v) or min
+                    if number~=number or math.abs(number)==math.huge then number=min end
+                    local nextValue=math.clamp(min+math.floor((number-min)/step+.5)*step,min,max)
+                    nextValue=tonumber(string.format('%.8f',nextValue)) or nextValue
+                    local changed=nextValue~=value; value=nextValue; amount.Text=tostring(value)
+                    local fraction=(value-min)/(max-min)
+                    animate(fill,{Size=UDim2.fromScale(fraction,1)}); animate(thumb,{Position=UDim2.fromScale(fraction,.5)})
                     if changed and not silent then fire(spec2.Callback,value) end
                 end; function api:Get() return value end
                 local activeInput
-                local function update(input) api:Set(min + math.clamp((input.Position.X-track.AbsolutePosition.X)/math.max(track.AbsoluteSize.X,1),0,1)*(max-min)) end
-                track.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then activeInput=input; update(input) end end)
-                local move = InputService.InputChanged:Connect(function(input) if activeInput and (input == activeInput or input.UserInputType == Enum.UserInputType.MouseMovement and activeInput.UserInputType == Enum.UserInputType.MouseButton1) then update(input) end end)
-                local ended = InputService.InputEnded:Connect(function(input) if input == activeInput then activeInput=nil end end)
+                local function update(input) api:Set(min+math.clamp((input.Position.X-rail.AbsolutePosition.X)/math.max(rail.AbsoluteSize.X,1),0,1)*(max-min)) end
+                hit.InputBegan:Connect(function(input)
+                    if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then activeInput=input; animate(thumb,{Size=UDim2.fromOffset(23,23)}); update(input) end
+                end)
+                local move=InputService.InputChanged:Connect(function(input) if activeInput and (input==activeInput or input.UserInputType==Enum.UserInputType.MouseMovement and activeInput.UserInputType==Enum.UserInputType.MouseButton1) then update(input) end end)
+                local ended=InputService.InputEnded:Connect(function(input) if input==activeInput then activeInput=nil; animate(thumb,{Size=UDim2.fromOffset(20,20)}) end end)
                 frame.Destroying:Connect(function() move:Disconnect(); ended:Disconnect() end); api:Set(value,true); return api
             end
             function section:Input(spec2)
                 local frame = row(spec2.Name,spec2.Description,52)
-                local box = create('TextBox',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,0,.5,0),Size=UDim2.fromOffset(90,31),BackgroundColor3=palette.elevated,BorderSizePixel=0,Text=tostring(spec2.Default or ''),PlaceholderText=spec2.Placeholder or 'Enter',PlaceholderColor3=palette.muted,TextColor3=palette.parchment,Font=Enum.Font.Gotham,TextSize=12,ClearTextOnFocus=false},frame); corner(box,5); stroke(box,palette.line)
-                box.Focused:Connect(function() animate(box,{BackgroundColor3=Color3.fromRGB(60,49,41)}) end)
-                box.FocusLost:Connect(function() animate(box,{BackgroundColor3=palette.elevated}); fire(spec2.Callback,box.Text) end)
+                local box = create('TextBox',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,0,.5,0),Size=UDim2.fromOffset(112,38),BackgroundColor3=Color3.fromRGB(24,23,24),BorderSizePixel=0,Text=tostring(spec2.Default or ''),PlaceholderText=spec2.Placeholder or 'Enter',PlaceholderColor3=palette.muted,TextColor3=palette.parchment,Font=Enum.Font.Gotham,TextSize=12,ClearTextOnFocus=false},frame); corner(box,5); stroke(box,palette.line)
+                box.Focused:Connect(function() animate(box,{BackgroundColor3=Color3.fromRGB(52,43,36)}) end)
+                box.FocusLost:Connect(function() animate(box,{BackgroundColor3=Color3.fromRGB(24,23,24)}); fire(spec2.Callback,box.Text) end)
                 local api={}; function api:Set(v,silent) box.Text=tostring(v); if not silent then fire(spec2.Callback,box.Text) end end; function api:Get() return box.Text end; return api
             end
             function section:Dropdown(spec2)
@@ -462,7 +497,7 @@ function Library:CreateWindow(options)
                 elseif not table.find(values,value) then value = values[1] or 'None' end
                 local expanded = false
                 local frame = row(spec2.Name,spec2.Description,52); frame.ClipsDescendants = true
-                local control = button(frame,''); control.AnchorPoint=Vector2.new(1,0); control.Position=UDim2.new(1,0,0,10); control.Size=UDim2.fromOffset(116,31); control.BackgroundColor3=palette.elevated; control.BackgroundTransparency=0; corner(control,5); stroke(control,palette.line)
+                local control = button(frame,''); control.AnchorPoint=Vector2.new(1,0); control.Position=UDim2.new(1,0,0,7); control.Size=UDim2.fromOffset(116,38); control.BackgroundColor3=Color3.fromRGB(30,28,28); control.BackgroundTransparency=0; corner(control,6); stroke(control,palette.gold,.55)
                 local text = label(control,'',11,palette.parchment); text.Position=UDim2.fromOffset(9,0); text.Size=UDim2.new(1,-32,1,0); text.TextTruncate=Enum.TextTruncate.AtEnd
                 local arrow = icon(control,'chevron-down','v'); arrow.AnchorPoint=Vector2.new(1,.5); arrow.Position=UDim2.new(1,-8,.5,0); arrow.Size=UDim2.fromOffset(14,14)
                 local list = create('ScrollingFrame',{Position=UDim2.fromOffset(0,52),Size=UDim2.new(1,0,0,0),BackgroundColor3=palette.elevated,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=palette.gold,AutomaticCanvasSize=Enum.AutomaticSize.Y,CanvasSize=UDim2.new(),Visible=false},frame)
@@ -483,7 +518,7 @@ function Library:CreateWindow(options)
                 end
                 local function setExpanded(open)
                     expanded = open; list.Visible = open
-                    local h = open and math.min(#values*34+8, 150) or 0
+                    local h = open and math.min(#values*40+8, 168) or 0
                     list.Size=UDim2.new(1,0,0,h)
                     animate(frame,{Size=UDim2.new(1,0,0,52+h)})
                     animate(arrow,{Rotation=open and 180 or 0})
@@ -492,7 +527,7 @@ function Library:CreateWindow(options)
                     for _, child in ipairs(list:GetChildren()) do if child:IsA('TextButton') then child:Destroy() end end
                     table.clear(items)
                     for index, v in ipairs(values) do
-                        local option = button(list,tostring(v)); option.Size=UDim2.new(1,0,0,32); option.LayoutOrder=index; option.TextXAlignment=Enum.TextXAlignment.Left; option.TextSize=12; option.BackgroundColor3=palette.panel; corner(option,4); padding(option,0,8,0,10); items[v]=option
+                        local option = button(list,tostring(v)); option.Size=UDim2.new(1,0,0,38); option.LayoutOrder=index; option.TextXAlignment=Enum.TextXAlignment.Left; option.TextSize=12; option.BackgroundColor3=palette.panel; corner(option,4); padding(option,0,8,0,10); items[v]=option
                         option.Activated:Connect(function()
                             if multi then selected[v]=not selected[v] or nil else value=v; setExpanded(false) end
                             refresh(); fire(spec2.Callback,result())
