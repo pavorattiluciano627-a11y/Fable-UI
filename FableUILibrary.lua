@@ -639,6 +639,33 @@ function Library:CreateWindow(options)
                 end
                 render();return api
             end
+            function section:Checkbox(spec2)
+                local value=spec2.Default==true
+                local frame=row(spec2.Name,spec2.Description,54)
+                local control=button(frame,'');control.AnchorPoint=Vector2.new(1,.5);control.Position=UDim2.new(1,0,.5,0);control.Size=UDim2.fromOffset(44,44)
+                local box=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(24,24),BackgroundColor3=palette.elevated,BorderSizePixel=0},control);corner(box,5);local border=create('UIStroke',{Color=palette.gold,Transparency=.4,Thickness=1},box)
+                local check=icon(box,'check','+');check.AnchorPoint=Vector2.new(.5,.5);check.Position=UDim2.fromScale(.5,.5);check.Size=UDim2.fromOffset(16,16);check.ImageColor3=palette.parchment
+                local function render() check.Visible=value;animate(box,{BackgroundColor3=value and Color3.fromRGB(128,91,48) or palette.elevated});animate(border,{Transparency=value and 0 or .4}) end
+                local api={};function api:Set(v,silent) value=v==true;render();if not silent then fire(spec2.Callback,value) end end;function api:Get() return value end
+                control.Activated:Connect(function() api:Set(not value) end);render();return api
+            end
+            function section:Stepper(spec2)
+                local min,max=spec2.Min or 0,spec2.Max or 10;local step=spec2.Step or 1;assert(max>=min and step>0,'Invalid stepper range')
+                local value=math.clamp(tonumber(spec2.Default) or min,min,max)
+                local frame=row(spec2.Name,spec2.Description,56)
+                local bar=create('Frame',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,0,.5,0),Size=UDim2.fromOffset(124,40),BackgroundTransparency=1},frame)
+                local minus=button(bar,'-');minus.Position=UDim2.fromOffset(0,2);minus.Size=UDim2.fromOffset(36,36);minus.TextSize=19;minus.BackgroundColor3=palette.elevated;minus.BackgroundTransparency=0;corner(minus,5);stroke(minus,palette.line)
+                local amount=label(bar,'',12,palette.parchment,Enum.Font.GothamBold);amount.Position=UDim2.fromOffset(38,2);amount.Size=UDim2.fromOffset(48,36);amount.TextXAlignment=Enum.TextXAlignment.Center
+                local plus=button(bar,'+');plus.Position=UDim2.fromOffset(88,2);plus.Size=UDim2.fromOffset(36,36);plus.TextSize=19;plus.BackgroundColor3=palette.elevated;plus.BackgroundTransparency=0;corner(plus,5);stroke(plus,palette.line)
+                local api={};function api:Set(v,silent) local n=tonumber(v);if not n or n~=n or math.abs(n)==math.huge then return end;value=math.clamp(min+math.floor((n-min)/step+.5)*step,min,max);value=tonumber(string.format('%.8f',value)) or value;amount.Text=tostring(value);if not silent then fire(spec2.Callback,value) end end;function api:Get() return value end
+                minus.Activated:Connect(function() api:Set(value-step) end);plus.Activated:Connect(function() api:Set(value+step) end);api:Set(value,true);return api
+            end
+            function section:Status(spec2)
+                local frame=row(spec2.Name,spec2.Description,48)
+                local dot=create('Frame',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-92,.5,0),Size=UDim2.fromOffset(8,8),BackgroundColor3=palette.gold,BorderSizePixel=0},frame);corner(dot,4)
+                local text=label(frame,'',11,palette.parchment,Enum.Font.GothamMedium);text.AnchorPoint=Vector2.new(1,.5);text.Position=UDim2.new(1,0,.5,0);text.Size=UDim2.fromOffset(85,24);text.TextXAlignment=Enum.TextXAlignment.Right;text.TextTruncate=Enum.TextTruncate.AtEnd
+                local api={};function api:Set(v,color) text.Text=tostring(v);if typeof(color)=='Color3' then dot.BackgroundColor3=color end end;api:Set(spec2.Value or 'Ready',spec2.Color);return api
+            end
             function section:Keybind(spec2)
                 local key=typeof(spec2.Default)=='EnumItem' and spec2.Default or nil
                 local capturing=false
@@ -685,6 +712,33 @@ function Library:CreateWindow(options)
                 local api={}; function api:Set(v) value.Text=tostring(v) end; return api
             end
             return section
+        end
+        -- Subtabs share the tab's scrolling page and the same section API.
+        function tab:SubTab(subSpec)
+            subSpec=subSpec or {}
+            if not self.SubBar then
+                self.SubTabs={}
+                self.SubBar=create('ScrollingFrame',{Name='SubTabs',Size=UDim2.new(1,0,0,43),BackgroundColor3=Color3.fromRGB(24,22,23),BackgroundTransparency=.12,BorderSizePixel=0,ScrollBarThickness=2,ScrollBarImageColor3=palette.gold,ScrollingDirection=Enum.ScrollingDirection.X,AutomaticCanvasSize=Enum.AutomaticSize.X,CanvasSize=UDim2.new()},self.Page)
+                corner(self.SubBar,6);stroke(self.SubBar,palette.line,.35)
+                create('UIListLayout',{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder},self.SubBar);padding(self.SubBar,4,4,4,4)
+            end
+            local sub={Name=subSpec.Name or 'Page',Section=self.Section}
+            sub.Button=button(self.SubBar,sub.Name);sub.Button.Size=UDim2.fromOffset(math.clamp(#sub.Name*8+32,90,180),33);sub.Button.TextSize=12;sub.Button.BackgroundColor3=Color3.fromRGB(102,71,42);corner(sub.Button,5)
+            sub.Page=create('Frame',{Name='SubPage',Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,Visible=false},self.Page)
+            create('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},sub.Page)
+            table.insert(self.SubTabs,sub)
+            function self:SelectSubTab(selected)
+                if not table.find(self.SubTabs,selected) then return end
+                for _,item in ipairs(self.SubTabs) do
+                    local active=item==selected;item.Page.Visible=active
+                    animate(item.Button,{BackgroundTransparency=active and 0 or 1,TextColor3=active and palette.parchment or palette.muted})
+                end
+                self.ActiveSubTab=selected
+            end
+            sub.Button.Activated:Connect(function() self:SelectSubTab(sub) end)
+            if not self.ActiveSubTab then self:SelectSubTab(sub) end
+            function sub:Select() tab:SelectSubTab(self);window:SelectTab(tab) end
+            return sub
         end
         return tab
     end
