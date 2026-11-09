@@ -519,7 +519,7 @@ function Library:CreateWindow(options)
                 local step=spec2.Step or 1; assert(step>0,'Slider step must be positive')
                 local value=math.clamp(spec2.Default or min,min,max); local frame=row(spec2.Name,spec2.Description,92)
                 local badge=create('Frame',{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.fromOffset(81,27),BackgroundColor3=Color3.fromRGB(48,39,31),BorderSizePixel=0},frame);corner(badge,5);stroke(badge,palette.gold,.55)
-                local amount=label(badge,'',12,palette.parchment,Enum.Font.GothamBold); amount.Size=UDim2.fromScale(1,1); amount.TextXAlignment=Enum.TextXAlignment.Center
+                local amount=create('TextBox',{Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Text='',TextColor3=palette.parchment,Font=Enum.Font.GothamBold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Center,ClearTextOnFocus=false},badge)
                 -- The rail is thin, but its invisible input area remains finger-sized.
                 local hit=button(frame,''); hit.Position=UDim2.new(0,0,0,43); hit.Size=UDim2.new(1,0,0,40)
                 local rail=create('Frame',{Position=UDim2.new(0,10,.5,-3),Size=UDim2.new(1,-20,0,6),BackgroundColor3=Color3.fromRGB(18,18,20),BorderSizePixel=0},hit);corner(rail,4);stroke(rail,palette.line,.2)
@@ -534,12 +534,17 @@ function Library:CreateWindow(options)
                     if number~=number or math.abs(number)==math.huge then number=min end
                     local nextValue=math.clamp(min+math.floor((number-min)/step+.5)*step,min,max)
                     nextValue=tonumber(string.format('%.8f',nextValue)) or nextValue
-                    local changed=nextValue~=value; value=nextValue; amount.Text=tostring(value)
+                    local changed=nextValue~=value; value=nextValue; if not amount:IsFocused() then amount.Text=tostring(value) end
                     local fraction=(value-min)/(max-min)
                     animate(fill,{Size=UDim2.fromScale(fraction,1)}); animate(thumb,{Position=UDim2.fromScale(fraction,.5)})
                     for _,layer in ipairs(thumbGlow) do animate(layer,{Position=UDim2.fromScale(fraction,.5)}) end
                     if changed and not silent then fire(spec2.Callback,value) end
                 end; function api:Get() return value end
+                amount.FocusLost:Connect(function()
+                    local entered=tonumber(amount.Text)
+                    if entered and entered==entered and math.abs(entered)<math.huge then api:Set(entered) end
+                    amount.Text=tostring(value)
+                end)
                 local activeInput
                 local function update(input) api:Set(min+math.clamp((input.Position.X-rail.AbsolutePosition.X)/math.max(rail.AbsoluteSize.X,1),0,1)*(max-min)) end
                 hit.InputBegan:Connect(function(input)
@@ -749,6 +754,38 @@ function Library:CreateWindow(options)
             end
             return section
         end
+        -- Two columns on wide screens; the same cards stack on smaller screens.
+        function tab:Columns()
+            local group=create('Frame',{Size=UDim2.new(1,0,0,1),BackgroundTransparency=1},self.Page)
+            local left=create('Frame',{BackgroundTransparency=1},group)
+            local right=create('Frame',{BackgroundTransparency=1},group)
+            local leftList=create('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},left)
+            local rightList=create('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},right)
+            local function arrange()
+                if not group.Parent then return end
+                local width=group.AbsoluteSize.X
+                if width<=0 then return end
+                local stacked=width<600
+                local leftHeight=leftList.AbsoluteContentSize.Y
+                local rightHeight=rightList.AbsoluteContentSize.Y
+                if stacked then
+                    left.Position=UDim2.fromOffset(0,0);left.Size=UDim2.new(1,0,0,leftHeight)
+                    right.Position=UDim2.fromOffset(0,leftHeight+12);right.Size=UDim2.new(1,0,0,rightHeight)
+                else
+                    left.Position=UDim2.fromOffset(0,0);left.Size=UDim2.new(.5,-6,0,leftHeight)
+                    right.Position=UDim2.new(.5,6,0,0);right.Size=UDim2.new(.5,-6,0,rightHeight)
+                end
+                local height=stacked and (leftHeight+rightHeight+12) or math.max(leftHeight,rightHeight)
+                group.Size=UDim2.new(1,0,0,math.max(1,height))
+            end
+            group:GetPropertyChangedSignal('AbsoluteSize'):Connect(arrange)
+            leftList:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(arrange)
+            rightList:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(arrange)
+            local sectionMethod=self.Section
+            local columns={Left={Page=left,Section=sectionMethod},Right={Page=right,Section=sectionMethod}}
+            task.defer(arrange)
+            return columns
+        end
         -- Subtabs share the tab's scrolling page and the same section API.
         function tab:SubTab(subSpec)
             subSpec=subSpec or {}
@@ -758,7 +795,7 @@ function Library:CreateWindow(options)
                 corner(self.SubBar,6);stroke(self.SubBar,palette.line,.35);watchScroll(self.SubBar)
                 create('UIListLayout',{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder},self.SubBar);padding(self.SubBar,4,4,4,4)
             end
-            local sub={Name=subSpec.Name or 'Page',Section=self.Section}
+            local sub={Name=subSpec.Name or 'Page',Section=self.Section,Columns=self.Columns}
             sub.Button=button(self.SubBar,sub.Name);sub.Button.Size=UDim2.fromOffset(math.clamp(#sub.Name*8+32,90,180),33);sub.Button.TextSize=12;sub.Button.BackgroundColor3=Color3.fromRGB(102,71,42);corner(sub.Button,5)
             sub.Page=create('Frame',{Name='SubPage',Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,Visible=false},self.Page)
             create('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},sub.Page)
@@ -787,51 +824,30 @@ function Library:CreateWindow(options)
     responsive()
     return window
 end
-local window = Library:CreateWindow({Title = 'FABLE', Subtitle = 'SCRIBES / MOTION'})
-local overview = window:Tab({Name = 'The Chronicle', Icon = 'book-open', Eyebrow = 'FABLE  /  THE FIRST PAGE', Description = 'A quieter place to prepare for the stories ahead.'})
-local welcome = overview:Section({Name = 'Welcome, traveler', Description = 'A living sketch of Fable’s interface. Everything here is a demonstration; no game automation is running.'})
-welcome:Paragraph({Title = 'Your story, your pace', Body = 'Browse the chapters on the left. On a smaller screen they become icons; tap the book to reopen the window if you put it away.'})
-welcome:Toggle({Name = 'Begin the journey', Description = 'A sample switch, written in gold.', Default = true, Callback = function(v) print('[Fable UI demo] Toggle:', v) end})
-welcome:Slider({Name = 'Flight speed', Description = 'Adjust a setting with the gilded slider.', Min = 100, Max = 300, Default = 200, Step = 10, Callback = function(v) print('[Fable UI demo] Slider:', v) end})
-local progress = welcome:Progress({Name = 'Chapter progress', Description = 'A sample progress indicator.', Default = .35})
-welcome:Button({Name = 'Turn the page', Description = 'Try an animated notification.', Action = 'CONTINUE', Callback = function()
-    progress:Set(.75)
-    window:Notify({Title = 'A new chapter', Content = 'Your story is ready to continue.', Icon = 'book-open'})
-end})
-local preparation = window:Tab({Name = 'Preparation', Icon = 'shield', Eyebrow = 'FABLE  /  PREPARATION', Description = 'Set your intentions before you venture out.'})
-local settings = preparation:Section({Name = 'The armory', Description = 'Select options directly; the menu also supports multiple selections.'})
-settings:Dropdown({Name = 'Preferred weapon', Description = 'Choose a single option.', Values = {'Blades', 'Spears', 'Any'}, Default = 'Blades', Callback = function(v) print('[Fable UI demo] Choice:', v) end})
-settings:Dropdown({Name = 'Supplies to pack', Description = 'Choose as many as you need.', Multi = true, Values = {'Blades', 'Gas', 'Bandages', 'Flare', 'Rations'}, Default = {'Gas'}, Callback = function(v) print('[Fable UI demo] Supplies:', table.concat(v, ', ')) end})
-settings:Input({Name = 'Gold threshold', Description = 'A sample text entry field.', Placeholder = '0', Callback = function(v) print('[Fable UI demo] Input:', v) end})
-settings:Toggle({Name = 'Keep a reserve', Description = 'An example safety preference.', Callback = function(v) print('[Fable UI demo] Reserve:', v) end})
-local lore = window:Tab({Name = 'Archives', Icon = 'library', Eyebrow = 'FABLE  /  ARCHIVES', Description = 'Records, notes and the paths already traveled.'})
-local records = lore:Section({Name = 'An unfinished tale', Description = 'This is a standalone visual prototype. Fable’s existing library, saved settings and hosted release remain untouched.'})
-records:Info({Name = 'Edition', Description = 'A sample information row.', Value = 'Prototype'})
-records:Paragraph({Title = 'A note in the margins', Body = 'This is a place for helpful explanations, safety notes or a little lore. Nothing in this showcase changes your account.'})
-
-local elements=window:Tab({Name='The Scriptorium',Icon='sparkles',Eyebrow='FABLE  /  ELEMENTS',Description='A showcase of the tools available to future Fable pages.'})
-local collection=elements:Section({Name='The collection',Description='These are demonstration controls only; their callbacks print or show a notification.'})
-collection:Divider({Name='SET THE SCENE'})
-collection:Segmented({Name='Travel mode',Description='A compact choice between modes.',Values={'Explore','Guard','Rest'},Default='Explore',Callback=function(v) print('[Fable UI demo] Mode:',v) end})
-collection:ColorPicker({Name='Wax seal',Description='Tap a color to update the preview; this does not change the theme.',Callback=function(v) print('[Fable UI demo] Color:',v) end})
-collection:Divider({Name='QUICK ACTIONS'})
-collection:Keybind({Name='Chapter shortcut',Description='Tap, then press a key. Escape cancels; Backspace clears.',Callback=function() window:Notify({Title='Shortcut',Content='Your sample keybind was pressed.'}) end})
-collection:Button({Name='Confirmation',Description='Preview a two-choice confirmation dialog.',Action='PREVIEW',Callback=function()
-    window:Confirm({Title='Turn the page?',Content='This only previews the dialog. It will not change anything in the game.',Confirm='CONTINUE',Callback=function(yes) window:Notify({Title=yes and 'Page turned' or 'Kept in place',Content='Your choice was recorded for this demonstration.'}) end})
-end})
-
-local workshop=window:Tab({Name='Workshop',Icon='layers',Eyebrow='FABLE  /  WORKSHOP',Description='Explore pages within a chapter and try more components.'})
-local basics=workshop:SubTab({Name='Essentials'})
-local advanced=workshop:SubTab({Name='Advanced'})
-local notes=workshop:SubTab({Name='Field Notes'})
-local essentials=basics:Section({Name='The basics',Description='A practical set of controls in the first subtab.'})
-essentials:Checkbox({Name='Pack provisions',Description='A compact alternative to a switch.',Default=true,Callback=function(v) print('[Fable UI demo] Checkbox:',v) end})
-essentials:Stepper({Name='Supply count',Description='Adjust a number one step at a time.',Min=0,Max=20,Step=1,Default=3,Callback=function(v) print('[Fable UI demo] Count:',v) end})
-essentials:Status({Name='Expedition',Description='A sample status indicator.',Value='Ready',Color=Color3.fromRGB(132,185,144)})
-local extras=advanced:Section({Name='Additional settings',Description='Each subtab keeps its own controls and selection.'})
-extras:Dropdown({Name='Destination',Description='Choose your next location.',Values={'The Keep','The Archives','The Watchtower'},Default='The Keep',Callback=function(v) print('[Fable UI demo] Destination:',v) end})
-extras:Toggle({Name='Follow the lanterns',Description='Another sample preference.',Default=false,Callback=function(v) print('[Fable UI demo] Lanterns:',v) end})
-extras:Slider({Name='Lantern brightness',Description='A sample range with a draggable handle.',Min=0,Max=100,Step=5,Default=60,Callback=function(v) print('[Fable UI demo] Brightness:',v) end})
-local journal=notes:Section({Name='From the journal',Description='Information can live alongside interactive controls.'})
-journal:Paragraph({Title='A chapter within a chapter',Body='Subtabs let related settings stay together without crowding the main navigation. The selected page is remembered while you browse the window.'})
-journal:Button({Name='Leave a note',Description='Show a sample notification.',Action='SHOW',Callback=function() window:Notify({Title='Journal updated',Content='This is only a demonstration.'}) end})
+local window=Library:CreateWindow({Title='FABLE',Subtitle='WORKFLOW STUDY / DEMO'})
+local farm=window:Tab({Name='Mission Farm',Icon='swords',Eyebrow='FABLE  /  MISSIONS',Description='Set up combat and recovery in one place. Demo only: no game actions are performed.'})
+local combat=farm:SubTab({Name='Combat'})
+local supplies=farm:SubTab({Name='Supplies'})
+local layout=combat:Columns()
+local mission=layout.Left:Section({Name='Combat',Description='Configure your mission farm.'})
+mission:Toggle({Name='Auto Farm',Description='Attack targets automatically.',Default=false,Callback=function(v) print('[Demo] Auto Farm',v) end})
+mission:Dropdown({Name='Target priority',Description='Select a targeting style.',Values={'Closest','Objective','Random'},Default='Closest',Callback=function(v) print('[Demo] Target',v) end})
+mission:Slider({Name='Multi Hit - Titans',Description='Maximum attempts per swing.',Min=1,Max=20,Step=1,Default=3,Callback=function(v) print('[Demo] Titan attempts',v) end})
+mission:Slider({Name='Multi Hit - Bosses',Description='Maximum attempts per swing.',Min=1,Max=30,Step=1,Default=10,Callback=function(v) print('[Demo] Boss attempts',v) end})
+local movement=layout.Right:Section({Name='Movement',Description='Fine-tune positioning.'})
+movement:Slider({Name='Hover Height',Description='Height above your target.',Min=100,Max=300,Step=1,Default=150,Callback=function(v) print('[Demo] Hover',v) end})
+movement:Toggle({Name='Auto Reload',Description='Replace fully broken blades.',Default=false,Callback=function(v) print('[Demo] Reload',v) end})
+local safety=layout.Right:Section({Name='Before you begin',Description='This page previews layout and controls only.'})
+safety:Paragraph({Title='A safe preview',Body='No controls on this page send game requests. Numeric slider values can be typed or dragged.'})
+safety:Button({Name='Test notification',Description='Preview a small confirmation.',Action='PREVIEW',Callback=function() window:Notify({Title='Ready to depart',Content='This was a UI preview; no game action was sent.',Icon='shield'}) end})
+local supplyLayout=supplies:Columns()
+local recovery=supplyLayout.Left:Section({Name='Recovery',Description='Options for keeping supplies ready.'})
+recovery:Toggle({Name='Auto Refill',Description='Refill when supplies run low.',Default=false,Callback=function(v) print('[Demo] Refill',v) end})
+recovery:Toggle({Name='Auto Reload',Description='Replace fully broken blades.',Default=false,Callback=function(v) print('[Demo] Reload',v) end})
+local preferences=supplyLayout.Right:Section({Name='Preferences',Description='Choose how the preview behaves.'})
+preferences:Segmented({Name='Supply mode',Description='A demonstration of modes.',Values={'Manual','Automatic'},Default='Manual',Callback=function(v) print('[Demo] Supply mode',v) end})
+preferences:Checkbox({Name='Show reminders',Description='A sample checkbox.',Default=true})
+local journal=window:Tab({Name='Field Notes',Icon='book-open',Eyebrow='FABLE  /  FIELD NOTES',Description='What this prototype does and does not do.'})
+local notes=journal:Section({Name='About this study',Description='The working Fable UI remains on arvn.'})
+notes:Paragraph({Title='What to review',Body='Compare the spacing, hierarchy, descriptions, columns and mobile layout. This is a visual workflow study, not a functional farm.'})
+notes:Paragraph({Title='Still to build',Body='Config persistence, a complete color picker, configurable binds and other production features remain unfinished.'})
