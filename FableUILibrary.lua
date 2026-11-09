@@ -231,6 +231,12 @@ end
 local function gradient(parent, a, b, rotation)
     return create('UIGradient', {Color = ColorSequence.new(a,b), Rotation = rotation or 90}, parent)
 end
+-- Layered translucent gradients create a soft in-game glow without external images.
+local function lightBand(parent, position, size, opacity, rotation)
+    local band = create('Frame',{Name='Glow',Position=position,Size=size,BackgroundColor3=Color3.fromRGB(233,157,76),BackgroundTransparency=opacity,BorderSizePixel=0},parent)
+    local fade = create('UIGradient',{Rotation=rotation or 0,Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.5,0),NumberSequenceKeypoint.new(1,1)})},band)
+    return band, fade
+end
 local function corner(parent, radius) create('UICorner', {CornerRadius = UDim.new(0, radius or 6)}, parent) end
 local function stroke(parent, color, transparency)
     create('UIStroke', {Color = color or palette.line, Transparency = transparency or 0, Thickness = 1}, parent)
@@ -268,11 +274,16 @@ function Library:CreateWindow(options)
     local scale = create('UIScale', {Scale = .965}, root)
     TweenService:Create(scale, TweenInfo.new(.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Scale = 1}):Play()
     local top = create('Frame', {Size = UDim2.new(1,0,0,58), BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0}, root)
-    gradient(top, Color3.fromRGB(51,42,35), Color3.fromRGB(23,23,26), 0)
-    local glow = create('Frame', {Position = UDim2.new(0,0,1,-2), Size = UDim2.new(1,0,0,2), BackgroundColor3 = palette.gold, BackgroundTransparency = .45, BorderSizePixel = 0}, top)
+    gradient(top, Color3.fromRGB(63,45,34), Color3.fromRGB(23,23,26), 0)
+    local headerLight = lightBand(top,UDim2.new(0,0,0,0),UDim2.new(1,0,1,0),.78,0)
+    local lowerLight = lightBand(top,UDim2.new(0,0,1,-18),UDim2.new(1,0,0,18),.66,0)
+    if not options.ReducedMotion then
+        TweenService:Create(headerLight,TweenInfo.new(3.2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{BackgroundTransparency=.88}):Play()
+    end
+    local glow = create('Frame', {Position = UDim2.new(0,0,1,-2), Size = UDim2.new(1,0,0,2), BackgroundColor3 = Color3.fromRGB(255,204,133), BackgroundTransparency = .12, BorderSizePixel = 0}, top)
     gradient(glow, Color3.fromRGB(96,72,49), Color3.fromRGB(207,168,108), 0)
     if not options.ReducedMotion then
-        TweenService:Create(glow, TweenInfo.new(2.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {BackgroundTransparency = .75}):Play()
+        TweenService:Create(glow, TweenInfo.new(2.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {BackgroundTransparency = .46}):Play()
     end
     local emblem = icon(top, 'book-open', 'F'); emblem.Position = UDim2.fromOffset(18,17); emblem.Size = UDim2.fromOffset(25,25)
     local brand = label(top, options.Title or 'FABLE', 20, palette.parchment, Enum.Font.Garamond); brand.Position = UDim2.fromOffset(51,8); brand.Size = UDim2.fromOffset(160,24)
@@ -399,6 +410,7 @@ function Library:CreateWindow(options)
             local title = label(card, specification.Name or 'Section', 18, palette.parchment, Enum.Font.Garamond); title.Size = UDim2.new(1,0,0,24)
             local accent = create('Frame',{Position=UDim2.fromOffset(-16,-15),Size=UDim2.fromOffset(3,24),BackgroundColor3=palette.gold,BackgroundTransparency=.3,BorderSizePixel=0},title)
             corner(accent,2)
+            local titleGlow = lightBand(title,UDim2.fromOffset(-15,-4),UDim2.new(1,30,1,8),.90,0)
             if specification.Description then local desc = label(card, specification.Description, 12, palette.muted); desc.TextWrapped = true; desc.AutomaticSize = Enum.AutomaticSize.Y; desc.Size = UDim2.new(1,0,0,0) end
             local section = {}
             local function row(name, description, height)
@@ -415,6 +427,7 @@ function Library:CreateWindow(options)
                 hit.AnchorPoint = Vector2.new(1,.5); hit.Position = UDim2.new(1,0,.5,0); hit.Size = UDim2.fromOffset(94,48)
                 local state = label(hit,'',9,palette.muted,Enum.Font.GothamBold)
                 state.Position=UDim2.fromOffset(0,0); state.Size=UDim2.fromOffset(33,48); state.TextXAlignment=Enum.TextXAlignment.Right
+                local switchGlow=lightBand(hit,UDim2.new(1,-73,.5,-22),UDim2.fromOffset(70,44),1,0)
                 local track = create('Frame',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-2,.5,0),Size=UDim2.fromOffset(48,25),BackgroundColor3=palette.elevated,BorderSizePixel=0},hit)
                 corner(track,13)
                 local border=create('UIStroke',{Color=palette.line,Transparency=.1,Thickness=1},track)
@@ -424,7 +437,8 @@ function Library:CreateWindow(options)
                 local seal=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(5,5),Rotation=45,BackgroundColor3=Color3.fromRGB(96,79,61),BorderSizePixel=0},knob);corner(seal,1)
                 local function render()
                     state.Text = value and 'ON' or 'OFF'
-                    animate(state,{TextColor3=value and palette.gold or palette.muted})
+                    animate(state,{TextColor3=value and Color3.fromRGB(255,217,155) or palette.muted})
+                    animate(switchGlow,{BackgroundTransparency=value and .62 or 1})
                     animate(track,{BackgroundColor3=value and Color3.fromRGB(130,96,57) or palette.elevated})
                     animate(border,{Color=value and palette.gold or palette.line,Transparency=value and .05 or .15})
                     animate(knob,{Position=UDim2.new(0,value and 36 or 12,.5,0),BackgroundColor3=value and Color3.fromRGB(245,218,165) or Color3.fromRGB(184,177,161)})
@@ -438,13 +452,14 @@ function Library:CreateWindow(options)
             end
             function section:Button(spec2)
                 local frame = row(spec2.Name,spec2.Description,54)
+                local buttonGlow=lightBand(frame,UDim2.new(1,-118,.5,-25),UDim2.fromOffset(132,50),.87,0)
                 local control = button(frame,''); control.AnchorPoint=Vector2.new(1,.5); control.Position=UDim2.new(1,0,.5,0); control.Size=UDim2.fromOffset(104,38)
                 control.BackgroundColor3=Color3.fromRGB(47,40,35); control.BackgroundTransparency=0; corner(control,6)
                 local outline=create('UIStroke',{Color=palette.gold,Transparency=.48,Thickness=1},control)
                 local caption=label(control,spec2.Action or 'OPEN',10,palette.parchment,Enum.Font.GothamBold); caption.Position=UDim2.fromOffset(11,0); caption.Size=UDim2.new(1,-30,1,0); caption.TextTruncate=Enum.TextTruncate.AtEnd
                 local arrow=icon(control,'arrow-right','>'); arrow.AnchorPoint=Vector2.new(1,.5); arrow.Position=UDim2.new(1,-9,.5,0); arrow.Size=UDim2.fromOffset(14,14)
-                control.MouseEnter:Connect(function() animate(control,{BackgroundColor3=Color3.fromRGB(76,58,40)}); animate(outline,{Transparency=.1}) end)
-                control.MouseLeave:Connect(function() animate(control,{BackgroundColor3=Color3.fromRGB(47,40,35)}); animate(outline,{Transparency=.48}) end)
+                control.MouseEnter:Connect(function() animate(control,{BackgroundColor3=Color3.fromRGB(96,66,39)}); animate(outline,{Transparency=.02}); animate(buttonGlow,{BackgroundTransparency=.6}) end)
+                control.MouseLeave:Connect(function() animate(control,{BackgroundColor3=Color3.fromRGB(47,40,35)}); animate(outline,{Transparency=.48}); animate(buttonGlow,{BackgroundTransparency=.87}) end)
                 control.Activated:Connect(function() fire(spec2.Callback) end); return control
             end
             function section:Slider(spec2)
@@ -455,10 +470,12 @@ function Library:CreateWindow(options)
                 local amount=label(badge,'',12,palette.parchment,Enum.Font.GothamBold); amount.Size=UDim2.fromScale(1,1); amount.TextXAlignment=Enum.TextXAlignment.Center
                 -- The rail is thin, but its invisible input area remains finger-sized.
                 local hit=button(frame,''); hit.Position=UDim2.new(0,0,0,43); hit.Size=UDim2.new(1,0,0,40)
+                local railGlow=lightBand(hit,UDim2.new(0,0,.5,-13),UDim2.new(1,0,0,26),.79,0)
                 local rail=create('Frame',{Position=UDim2.new(0,10,.5,-3),Size=UDim2.new(1,-20,0,6),BackgroundColor3=Color3.fromRGB(18,18,20),BorderSizePixel=0},hit);corner(rail,4);stroke(rail,palette.line,.2)
                 local fill=create('Frame',{Size=UDim2.fromScale(0,1),BackgroundColor3=Color3.new(1,1,1),BorderSizePixel=0},rail);corner(fill,4);gradient(fill,Color3.fromRGB(128,89,52),Color3.fromRGB(229,194,130),0)
                 local thumb=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(0,.5),Size=UDim2.fromOffset(20,20),BackgroundColor3=Color3.fromRGB(48,37,30),BorderSizePixel=0},rail);corner(thumb,10);stroke(thumb,palette.gold,.05)
-                local gem=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(8,8),Rotation=45,BackgroundColor3=Color3.fromRGB(236,206,149),BorderSizePixel=0},thumb);corner(gem,2)
+                local thumbGlow=lightBand(thumb,UDim2.fromOffset(-13,-13),UDim2.fromOffset(46,46),.65,0)
+                local gem=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(8,8),Rotation=45,BackgroundColor3=Color3.fromRGB(255,224,167),BorderSizePixel=0},thumb);corner(gem,2)
                 local low=label(frame,tostring(min),10,palette.muted); low.Position=UDim2.new(0,0,1,-14); low.Size=UDim2.fromOffset(55,14)
                 local high=label(frame,tostring(max),10,palette.muted); high.AnchorPoint=Vector2.new(1,0); high.Position=UDim2.new(1,0,1,-14); high.Size=UDim2.fromOffset(55,14); high.TextXAlignment=Enum.TextXAlignment.Right
                 local api={}; function api:Set(v,silent)
@@ -474,17 +491,18 @@ function Library:CreateWindow(options)
                 local activeInput
                 local function update(input) api:Set(min+math.clamp((input.Position.X-rail.AbsolutePosition.X)/math.max(rail.AbsoluteSize.X,1),0,1)*(max-min)) end
                 hit.InputBegan:Connect(function(input)
-                    if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then activeInput=input; animate(thumb,{Size=UDim2.fromOffset(23,23)}); update(input) end
+                    if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then activeInput=input; animate(thumb,{Size=UDim2.fromOffset(23,23)}); animate(railGlow,{BackgroundTransparency=.55}); update(input) end
                 end)
                 local move=InputService.InputChanged:Connect(function(input) if activeInput and (input==activeInput or input.UserInputType==Enum.UserInputType.MouseMovement and activeInput.UserInputType==Enum.UserInputType.MouseButton1) then update(input) end end)
-                local ended=InputService.InputEnded:Connect(function(input) if input==activeInput then activeInput=nil; animate(thumb,{Size=UDim2.fromOffset(20,20)}) end end)
+                local ended=InputService.InputEnded:Connect(function(input) if input==activeInput then activeInput=nil; animate(thumb,{Size=UDim2.fromOffset(20,20)}); animate(railGlow,{BackgroundTransparency=.79}) end end)
                 frame.Destroying:Connect(function() move:Disconnect(); ended:Disconnect() end); api:Set(value,true); return api
             end
             function section:Input(spec2)
                 local frame = row(spec2.Name,spec2.Description,52)
+                local focusGlow=lightBand(frame,UDim2.new(1,-125,.5,-25),UDim2.fromOffset(138,50),.9,0)
                 local box = create('TextBox',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,0,.5,0),Size=UDim2.fromOffset(112,38),BackgroundColor3=Color3.fromRGB(24,23,24),BorderSizePixel=0,Text=tostring(spec2.Default or ''),PlaceholderText=spec2.Placeholder or 'Enter',PlaceholderColor3=palette.muted,TextColor3=palette.parchment,Font=Enum.Font.Gotham,TextSize=12,ClearTextOnFocus=false},frame); corner(box,5); stroke(box,palette.line)
-                box.Focused:Connect(function() animate(box,{BackgroundColor3=Color3.fromRGB(52,43,36)}) end)
-                box.FocusLost:Connect(function() animate(box,{BackgroundColor3=Color3.fromRGB(24,23,24)}); fire(spec2.Callback,box.Text) end)
+                box.Focused:Connect(function() animate(box,{BackgroundColor3=Color3.fromRGB(64,48,35)}); animate(focusGlow,{BackgroundTransparency=.58}) end)
+                box.FocusLost:Connect(function() animate(box,{BackgroundColor3=Color3.fromRGB(24,23,24)}); animate(focusGlow,{BackgroundTransparency=.9}); fire(spec2.Callback,box.Text) end)
                 local api={}; function api:Set(v,silent) box.Text=tostring(v); if not silent then fire(spec2.Callback,box.Text) end end; function api:Get() return box.Text end; return api
             end
             function section:Dropdown(spec2)
