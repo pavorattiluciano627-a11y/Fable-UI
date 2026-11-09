@@ -233,7 +233,7 @@ local function gradient(parent, a, b, rotation)
 end
 local function corner(parent, radius) create('UICorner', {CornerRadius = UDim.new(0, radius or 6)}, parent) end
 local function stroke(parent, color, transparency)
-    create('UIStroke', {Color = color or palette.line, Transparency = transparency or 0, Thickness = 1}, parent)
+    return create('UIStroke', {Color = color or palette.line, Transparency = transparency or 0, Thickness = 1}, parent)
 end
 -- Concentric circles taper at the edges rather than ending in a rectangular cutoff.
 local function halo(parent, position)
@@ -272,8 +272,10 @@ function Library:CreateWindow(options)
     local root = create('Frame', {Name = 'Window', AnchorPoint = Vector2.new(.5,.5), Position = UDim2.fromScale(.5,.5),
         Size = UDim2.new(.9,0,.82,0), BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0, ClipsDescendants = true}, gui)
     create('UISizeConstraint', {MaxSize = Vector2.new(880, 620), MinSize = Vector2.new(320, 280)}, root)
-    corner(root, 9); stroke(root, palette.gold, .55)
-    gradient(root, Color3.fromRGB(35,30,29), Color3.fromRGB(14,15,19), 105)
+    corner(root, 9)
+    local binding=stroke(root, Color3.fromRGB(204,160,104), .28)
+    gradient(binding,Color3.fromRGB(255,224,177),Color3.fromRGB(89,64,45),90)
+    gradient(root, Color3.fromRGB(39,31,29), Color3.fromRGB(10,11,15), 105)
     local backdrop = create('ImageLabel',{Name='Artwork',Size=UDim2.fromScale(1,1),BackgroundTransparency=1,ImageTransparency=.26,ScaleType=Enum.ScaleType.Crop},root)
     local shade=create('Frame',{Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.fromRGB(12,12,15),BackgroundTransparency=.47,BorderSizePixel=0},root)
     corner(backdrop,9); corner(shade,9)
@@ -298,12 +300,14 @@ function Library:CreateWindow(options)
     TweenService:Create(scale, TweenInfo.new(.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Scale = 1}):Play()
     local top = create('Frame', {Size = UDim2.new(1,0,0,58), BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0}, root)
     corner(top,9)
-    gradient(top, Color3.fromRGB(54,40,32), Color3.fromRGB(23,23,26), 0)
+    gradient(top, Color3.fromRGB(76,52,38), Color3.fromRGB(20,19,22), 0)
     local separator = create('Frame', {Position=UDim2.new(0,9,1,-1), Size=UDim2.new(1,-18,0,1), BackgroundColor3=palette.gold, BackgroundTransparency=.45, BorderSizePixel=0},top)
     gradient(separator,Color3.fromRGB(178,126,73),Color3.fromRGB(55,46,39),0)
-    local emblem = icon(top, 'book-open', 'F'); emblem.Position = UDim2.fromOffset(18,17); emblem.Size = UDim2.fromOffset(25,25)
-    local brand = label(top, options.Title or 'FABLE', 20, palette.parchment, Enum.Font.Garamond); brand.Position = UDim2.fromOffset(51,8); brand.Size = UDim2.fromOffset(160,24)
-    local subtitle = label(top, options.Subtitle or 'A PRIVATE CHRONICLE', 9, palette.muted, Enum.Font.Gotham); subtitle.Position = UDim2.fromOffset(52,32); subtitle.Size = UDim2.fromOffset(200,14)
+    local medallion=create('Frame',{Position=UDim2.fromOffset(16,12),Size=UDim2.fromOffset(34,34),BackgroundColor3=Color3.fromRGB(20,19,20),BackgroundTransparency=.18,BorderSizePixel=0},top);corner(medallion,17);stroke(medallion,palette.gold,.32)
+    local emblem = icon(top, 'book-open', 'F'); emblem.Position = UDim2.fromOffset(22,18); emblem.Size = UDim2.fromOffset(22,22)
+    local brand = label(top, options.Title or 'FABLE', 23, palette.parchment, Enum.Font.Garamond); brand.Position = UDim2.fromOffset(57,7); brand.Size = UDim2.fromOffset(160,26)
+    brand.TextStrokeColor3=Color3.fromRGB(17,13,13);brand.TextStrokeTransparency=.3
+    local subtitle = label(top, options.Subtitle or 'A PRIVATE CHRONICLE', 9, palette.muted, Enum.Font.Gotham); subtitle.Position = UDim2.fromOffset(58,33); subtitle.Size = UDim2.fromOffset(200,14)
     local close = button(top, ''); close.Position = UDim2.new(1,-46,0,8); close.Size = UDim2.fromOffset(36,36)
     local closeIcon = icon(close, 'minus', '-'); closeIcon.AnchorPoint = Vector2.new(.5,.5); closeIcon.Position = UDim2.fromScale(.5,.5); closeIcon.Size = UDim2.fromOffset(17,17); closeIcon.ImageColor3 = palette.muted
     close.MouseEnter:Connect(function() animate(closeIcon, {ImageColor3 = palette.parchment}) end)
@@ -444,7 +448,8 @@ function Library:CreateWindow(options)
     function window:Tab(spec)
         spec = spec or {}; local tab = {Name = spec.Name or 'Chapter', Icon = spec.Icon or 'book', Sections = {}}
         tab.Nav = button(nav, ''); tab.Nav.Size = UDim2.new(1,0,0,39)
-        tab.Nav.BackgroundColor3 = palette.elevated; tab.Nav.BackgroundTransparency = 1; corner(tab.Nav,5)
+        tab.Nav.BackgroundColor3 = Color3.fromRGB(70,53,40); tab.Nav.BackgroundTransparency = 1; corner(tab.Nav,5)
+        tab.Border=stroke(tab.Nav,Color3.fromRGB(196,153,97),1)
         tab.Image = icon(tab.Nav, tab.Icon, tab.Name:sub(1,1)); tab.Image.Position = UDim2.fromOffset(9,11); tab.Image.Size = UDim2.fromOffset(17,17)
         tab.Caption = label(tab.Nav, tab.Name, 13, palette.muted); tab.Caption.Position = UDim2.fromOffset(35,0); tab.Caption.Size = UDim2.new(1,-39,1,0); tab.Caption.TextTruncate = Enum.TextTruncate.AtEnd
         tab.Indicator=create('Frame',{AnchorPoint=Vector2.new(0,.5),Position=UDim2.new(0,0,.5,0),Size=UDim2.fromOffset(3,4),BackgroundColor3=palette.gold,BackgroundTransparency=1,BorderSizePixel=0},tab.Nav);corner(tab.Indicator,2)
@@ -468,6 +473,7 @@ function Library:CreateWindow(options)
                 local active = other == selected; other.Layer.Visible = active
                 if not active and other.Transition then other.Transition:Cancel(); other.Transition=nil end
                 animate(other.Nav, {BackgroundTransparency = active and 0 or 1})
+                animate(other.Border,{Transparency=active and .48 or 1})
                 animate(other.Caption, {TextColor3 = active and palette.parchment or palette.muted})
                 animate(other.Image, {ImageColor3 = active and palette.gold or palette.muted})
                 animate(other.Indicator,{BackgroundTransparency=active and 0 or 1,Size=UDim2.fromOffset(3,active and 23 or 4)})
@@ -491,12 +497,18 @@ function Library:CreateWindow(options)
         function tab:Section(specification)
             specification = specification or {}
             local card = create('Frame', {Size = UDim2.new(1,0,0,0), AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundColor3 = Color3.new(1,1,1), BackgroundTransparency = .18, BorderSizePixel = 0}, self.Page); corner(card,7); stroke(card,palette.line,.3)
-            gradient(card, Color3.fromRGB(47,41,38), Color3.fromRGB(27,26,29), 105)
+                BackgroundColor3 = Color3.new(1,1,1), BackgroundTransparency = .10, BorderSizePixel = 0}, self.Page); corner(card,8)
+            local cardEdge=stroke(card,Color3.fromRGB(162,126,86),.42)
+            gradient(cardEdge,Color3.fromRGB(231,194,139),Color3.fromRGB(76,58,48),90)
+            gradient(card, Color3.fromRGB(61,49,42), Color3.fromRGB(23,22,26), 105)
             padding(card,15,16,15,16); create('UIListLayout', {Padding = UDim.new(0,10), SortOrder = Enum.SortOrder.LayoutOrder}, card)
-            local title = label(card, specification.Name or 'Section', 18, palette.parchment, Enum.Font.Garamond); title.Size = UDim2.new(1,0,0,24)
-            local accent = create('Frame',{Position=UDim2.fromOffset(-16,-15),Size=UDim2.fromOffset(3,24),BackgroundColor3=palette.gold,BackgroundTransparency=.3,BorderSizePixel=0},title)
+            local title = label(card, specification.Name or 'Section', 20, palette.parchment, Enum.Font.Garamond); title.Size = UDim2.new(1,0,0,28)
+            title.TextStrokeColor3=Color3.fromRGB(12,10,10);title.TextStrokeTransparency=.38
+            local accent = create('Frame',{Position=UDim2.fromOffset(-16,-15),Size=UDim2.fromOffset(3,29),BackgroundColor3=palette.gold,BackgroundTransparency=.12,BorderSizePixel=0},title)
             corner(accent,2)
+            local rule=create('Frame',{Position=UDim2.new(0,0,1,1),Size=UDim2.new(1,0,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.5,BorderSizePixel=0},title)
+            create('UIGradient',{Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,.1),NumberSequenceKeypoint.new(.65,.65),NumberSequenceKeypoint.new(1,1)})},rule)
+            local seal=create('Frame',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-4,.5,0),Size=UDim2.fromOffset(6,6),Rotation=45,BackgroundColor3=palette.gold,BackgroundTransparency=.25,BorderSizePixel=0},title);corner(seal,1)
             if specification.Description then local desc = label(card, specification.Description, 12, palette.muted); desc.TextWrapped = true; desc.AutomaticSize = Enum.AutomaticSize.Y; desc.Size = UDim2.new(1,0,0,0) end
             local section = {}
             local function row(name, description, height)
@@ -537,12 +549,12 @@ function Library:CreateWindow(options)
             function section:Button(spec2)
                 local frame = row(spec2.Name,spec2.Description,54)
                 local control = button(frame,''); control.AnchorPoint=Vector2.new(1,.5); control.Position=UDim2.new(1,0,.5,0); control.Size=UDim2.fromOffset(104,38)
-                control.BackgroundColor3=Color3.fromRGB(47,40,35); control.BackgroundTransparency=0; corner(control,6)
+                control.BackgroundColor3=Color3.fromRGB(60,45,34); control.BackgroundTransparency=0; corner(control,6)
                 local outline=create('UIStroke',{Color=palette.gold,Transparency=.48,Thickness=1},control)
                 local caption=label(control,spec2.Action or 'OPEN',10,palette.parchment,Enum.Font.GothamBold); caption.Position=UDim2.fromOffset(11,0); caption.Size=UDim2.new(1,-30,1,0); caption.TextTruncate=Enum.TextTruncate.AtEnd
                 local arrow=icon(control,'arrow-right','>'); arrow.AnchorPoint=Vector2.new(1,.5); arrow.Position=UDim2.new(1,-9,.5,0); arrow.Size=UDim2.fromOffset(14,14)
                 control.MouseEnter:Connect(function() animate(control,{BackgroundColor3=Color3.fromRGB(96,66,39)}); animate(outline,{Transparency=.02}) end)
-                control.MouseLeave:Connect(function() animate(control,{BackgroundColor3=Color3.fromRGB(47,40,35)}); animate(outline,{Transparency=.48}) end)
+                control.MouseLeave:Connect(function() animate(control,{BackgroundColor3=Color3.fromRGB(60,45,34)}); animate(outline,{Transparency=.48}) end)
                 control.Activated:Connect(function() fire(spec2.Callback) end); return control
             end
             function section:Slider(spec2)
