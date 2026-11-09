@@ -615,20 +615,34 @@ function Library:CreateWindow(options)
                 render();return api
             end
             function section:ColorPicker(spec2)
-                -- Palette-based selector: easy to use on touch; this is not a full HSV picker.
+                -- Presets are intentionally separate from the window theme.
                 local colors=spec2.Colors or {Color3.fromRGB(210,170,111),Color3.fromRGB(145,68,62),Color3.fromRGB(94,124,116),Color3.fromRGB(126,112,153)}
                 assert(#colors>0,'Color picker needs at least one color')
-                local value=spec2.Default or colors[1]
-                local frame=row(spec2.Name,spec2.Description,90)
-                local swatches=create('Frame',{Position=UDim2.fromOffset(0,48),Size=UDim2.new(1,0,0,38),BackgroundTransparency=1},frame)
-                create('UIListLayout',{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},swatches)
+                local value=typeof(spec2.Default)=='Color3' and spec2.Default or colors[1]
+                local frame=row(spec2.Name,spec2.Description,100)
+                local preview=create('Frame',{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,1),Size=UDim2.fromOffset(112,30),BackgroundColor3=palette.elevated,BorderSizePixel=0},frame);corner(preview,5);stroke(preview,palette.line,.1)
+                local chip=create('Frame',{Position=UDim2.fromOffset(7,7),Size=UDim2.fromOffset(16,16),BackgroundColor3=value,BorderSizePixel=0},preview);corner(chip,8)
+                local hex=label(preview,'',11,palette.parchment,Enum.Font.GothamMedium);hex.Position=UDim2.fromOffset(29,0);hex.Size=UDim2.new(1,-32,1,0)
+                local swatches=create('Frame',{Position=UDim2.fromOffset(0,50),Size=UDim2.new(1,0,0,44),BackgroundTransparency=1},frame)
+                create('UIListLayout',{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder},swatches)
                 local controls={}
-                local function render() for color,border in pairs(controls) do animate(border,{Transparency=color==value and 0 or .7,Thickness=color==value and 2 or 1}) end end
+                local function render()
+                    chip.BackgroundColor3=value
+                    hex.Text=string.format('#%02X%02X%02X',math.floor(value.R*255+.5),math.floor(value.G*255+.5),math.floor(value.B*255+.5))
+                    for _,entry in ipairs(controls) do
+                        local active=entry.color==value
+                        entry.mark.Visible=active
+                        animate(entry.outline,{Transparency=active and 0 or .65,Thickness=active and 2 or 1})
+                        animate(entry.swatch,{Size=UDim2.fromOffset(active and 29 or 25,active and 29 or 25)})
+                    end
+                end
                 local api={};function api:Set(v,silent) if typeof(v)~='Color3' then return end;value=v;render();if not silent then fire(spec2.Callback,value) end end;function api:Get() return value end
                 for _,color in ipairs(colors) do
-                    local hit=button(swatches,'');hit.Size=UDim2.fromOffset(38,38)
-                    local swatch=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(26,26),BackgroundColor3=color,BorderSizePixel=0},hit);corner(swatch,13)
-                    local outline=create('UIStroke',{Color=palette.parchment,Transparency=.7,Thickness=1},swatch);controls[color]=outline
+                    local hit=button(swatches,'');hit.Size=UDim2.fromOffset(44,44)
+                    local swatch=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(25,25),BackgroundColor3=color,BorderSizePixel=0},hit);corner(swatch,15)
+                    local outline=create('UIStroke',{Color=palette.parchment,Transparency=.65,Thickness=1},swatch)
+                    local mark=icon(swatch,'check','+');mark.AnchorPoint=Vector2.new(.5,.5);mark.Position=UDim2.fromScale(.5,.5);mark.Size=UDim2.fromOffset(14,14);mark.ImageColor3=Color3.fromRGB(255,255,255)
+                    table.insert(controls,{color=color,outline=outline,mark=mark,swatch=swatch})
                     hit.Activated:Connect(function() api:Set(color) end)
                 end
                 render();return api
@@ -686,7 +700,7 @@ function Library:CreateWindow(options)
     responsive()
     return window
 end
-local window = Library:CreateWindow({Title = 'FABLE', Subtitle = 'THE SCRIBES EDITION'})
+local window = Library:CreateWindow({Title = 'FABLE', Subtitle = 'SCRIBES / PALETTE FIX'})
 local overview = window:Tab({Name = 'The Chronicle', Icon = 'book-open', Eyebrow = 'FABLE  /  THE FIRST PAGE', Description = 'A quieter place to prepare for the stories ahead.'})
 local welcome = overview:Section({Name = 'Welcome, traveler', Description = 'A living sketch of Fable’s interface. Everything here is a demonstration; no game automation is running.'})
 welcome:Paragraph({Title = 'Your story, your pace', Body = 'Browse the chapters on the left. On a smaller screen they become icons; tap the book to reopen the window if you put it away.'})
@@ -712,7 +726,7 @@ local elements=window:Tab({Name='The Scriptorium',Icon='sparkles',Eyebrow='FABLE
 local collection=elements:Section({Name='The collection',Description='These are demonstration controls only; their callbacks print or show a notification.'})
 collection:Divider({Name='SET THE SCENE'})
 collection:Segmented({Name='Travel mode',Description='A compact choice between modes.',Values={'Explore','Guard','Rest'},Default='Explore',Callback=function(v) print('[Fable UI demo] Mode:',v) end})
-collection:ColorPicker({Name='Wax seal',Description='Choose a color from the curated palette.',Callback=function(v) print('[Fable UI demo] Color:',v) end})
+collection:ColorPicker({Name='Wax seal',Description='Tap a color to update the preview; this does not change the theme.',Callback=function(v) print('[Fable UI demo] Color:',v) end})
 collection:Divider({Name='QUICK ACTIONS'})
 collection:Keybind({Name='Chapter shortcut',Description='Tap, then press a key. Escape cancels; Backspace clears.',Callback=function() window:Notify({Title='Shortcut',Content='Your sample keybind was pressed.'}) end})
 collection:Button({Name='Confirmation',Description='Preview a two-choice confirmation dialog.',Action='PREVIEW',Callback=function()
