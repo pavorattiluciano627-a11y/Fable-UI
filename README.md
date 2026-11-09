@@ -39,3 +39,5 @@ Create subtabs before adding their sections. A tab can still use `tab:Section(..
 ## Responsive columns
 
 `local columns = tab:Columns()` (or `subtab:Columns()`) returns `columns.Left` and `columns.Right`; call `:Section(...)` on either. Cards display side by side when space permits and stack on narrow screens. Sliders also accept typed values. The demo is a mock Fable mission workflow; its controls do not run automation.
+
+The left-edge handle collapses or expands the sidebar; it defaults to compact on narrower windows. Scripts may call `window:SetSidebarCollapsed(true)` or `window:SetSidebarCollapsed(false)`.
