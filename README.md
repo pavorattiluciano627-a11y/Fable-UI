@@ -1,0 +1,23 @@
+# Fable UI — prototype
+
+A standalone dark-fantasy Roblox UI experiment. This does not operate Fable's game automation and is not yet a replacement for its existing UI.
+
+## Demo
+
+```lua
+loadstring(game:HttpGet('https://raw.githubusercontent.com/pavorattiluciano627-a11y/Fable-UI/main/Fable-UI-Demo.lua'))()
+```
+
+## Library
+
+```lua
+local Library = loadstring(game:HttpGet('https://raw.githubusercontent.com/pavorattiluciano627-a11y/Fable-UI/main/FableUILibrary.lua'))()
+local window = Library:CreateWindow({Title = 'FABLE', Subtitle = 'A PRIVATE CHRONICLE'})
+local tab = window:Tab({Name = 'The Chronicle', Icon = 'book-open', Description = 'A place to begin.'})
+local section = tab:Section({Name = 'Preparation'})
+section:Toggle({Name = 'Example', Default = false, Callback = function(value) print(value) end})
+```
+
+Early prototype: no config persistence, keybinds, full dropdown menus, notification system, or production integration yet. The demo dropdown cycles through its choices. Callbacks run asynchronously. Closing destroys the demo UI. Test on your executor and device; Roblox asset access can vary.
+
+Lucide asset ID mappings were adapted from [OasisUI](https://github.com/Mold53/OasisUI), which generates its subset from [Footagesus/Icons](https://github.com/Footagesus/Icons). Lucide artwork is by [Lucide](https://lucide.dev/). See the accompanying license files. The icons rely on third-party Roblox assets and may be unavailable in some environments; navigation icons have letter fallbacks.
