@@ -362,7 +362,7 @@ function Library:CreateWindow(options)
             end)
         end)
     end
-    local nav = create('ScrollingFrame', {Position = UDim2.fromOffset(0,58), Size = UDim2.new(0,172,1,-58),
+    local nav = create('ScrollingFrame', {Position = UDim2.fromOffset(0,58), Size = UDim2.new(0,172,1,-104),
         BackgroundColor3 = palette.sidebar, BackgroundTransparency = .18, BorderSizePixel = 0, ScrollBarThickness = 2, ScrollBarImageColor3 = palette.line,
         AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, root)
     watchScroll(nav)
@@ -372,8 +372,10 @@ function Library:CreateWindow(options)
     local divider = create('Frame', {Position = UDim2.fromOffset(171,58), Size = UDim2.new(0,1,1,-58), BackgroundColor3 = palette.line, BorderSizePixel = 0}, root)
     local content = create('Frame', {Position = UDim2.fromOffset(172,58), Size = UDim2.new(1,-172,1,-58), BackgroundTransparency = 1, ClipsDescendants = true}, root)
     local window = {Gui = gui, Tabs = {}, Active = nil, Compact = false}
-    local sidebarHandle=button(root,'')
-    sidebarHandle.Name='SidebarHandle';sidebarHandle.AnchorPoint=Vector2.new(0,.5);sidebarHandle.Position=UDim2.new(0,0,.5,0);sidebarHandle.Size=UDim2.fromOffset(27,52);sidebarHandle.BackgroundColor3=Color3.fromRGB(54,41,31);sidebarHandle.BackgroundTransparency=.16;sidebarHandle.ZIndex=8;corner(sidebarHandle,7);stroke(sidebarHandle,palette.gold,.25)
+    local sidebarFooter=create('Frame',{Name='SidebarFooter',AnchorPoint=Vector2.new(0,1),Position=UDim2.new(0,0,1,0),Size=UDim2.fromOffset(172,46),BackgroundColor3=palette.sidebar,BackgroundTransparency=.08,BorderSizePixel=0,ZIndex=2},root)
+    local footerLine=create('Frame',{Size=UDim2.new(1,0,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.65,BorderSizePixel=0,ZIndex=3},sidebarFooter)
+    local sidebarHandle=button(sidebarFooter,'')
+    sidebarHandle.Name='SidebarHandle';sidebarHandle.Position=UDim2.fromOffset(8,4);sidebarHandle.Size=UDim2.fromOffset(38,38);sidebarHandle.BackgroundColor3=Color3.fromRGB(54,41,31);sidebarHandle.BackgroundTransparency=.16;sidebarHandle.ZIndex=8;corner(sidebarHandle,7);stroke(sidebarHandle,palette.gold,.25)
     local handleIcon=icon(sidebarHandle,'chevron-left','<');handleIcon.AnchorPoint=Vector2.new(.5,.5);handleIcon.Position=UDim2.fromScale(.5,.5);handleIcon.Size=UDim2.fromOffset(17,17);handleIcon.ZIndex=9
     local handleFallback=handleIcon:FindFirstChildOfClass('TextLabel');if handleFallback then handleFallback.ZIndex=10 end
     sidebarHandle.MouseEnter:Connect(function() animate(sidebarHandle,{BackgroundTransparency=0}) end)
@@ -421,15 +423,17 @@ function Library:CreateWindow(options)
         if width==window.SidebarWidth and compact==window.Compact then return end
         local initial=window.SidebarWidth==nil
         window.Compact=compact;window.SidebarWidth=width
-        local navSize=UDim2.new(0,width,1,-58)
+        local navSize=UDim2.new(0,width,1,-104)
+        local footerSize=UDim2.fromOffset(width,46)
         local dividerPos=UDim2.fromOffset(width-1,58)
         local contentPos=UDim2.fromOffset(width,58)
         local contentSize=UDim2.new(1,-width,1,-58)
         if initial or options.ReducedMotion then
-            nav.Size=navSize;divider.Position=dividerPos;content.Position=contentPos;content.Size=contentSize
+            nav.Size=navSize;sidebarFooter.Size=footerSize;divider.Position=dividerPos;content.Position=contentPos;content.Size=contentSize
         else
             local transition=TweenInfo.new(.24,Enum.EasingStyle.Quart,Enum.EasingDirection.Out)
             TweenService:Create(nav,transition,{Size=navSize}):Play()
+            TweenService:Create(sidebarFooter,transition,{Size=footerSize}):Play()
             TweenService:Create(divider,transition,{Position=dividerPos}):Play()
             TweenService:Create(content,transition,{Position=contentPos,Size=contentSize}):Play()
         end
@@ -450,6 +454,8 @@ function Library:CreateWindow(options)
     function window:Tab(spec)
         spec = spec or {}; local tab = {Name = spec.Name or 'Chapter', Icon = spec.Icon or 'book', Sections = {}}
         tab.Nav = button(nav, ''); tab.Nav.Size = UDim2.new(1,0,0,39); tab.Nav.LayoutOrder=(#window.Tabs+1)*1000
+        local tabSeparator=create('Frame',{Name='TabSeparator',Size=UDim2.new(1,-12,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.76,BorderSizePixel=0,LayoutOrder=tab.Nav.LayoutOrder+999},nav)
+        create('UIGradient',{Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,.2),NumberSequenceKeypoint.new(1,1)})},tabSeparator)
         tab.Nav.BackgroundColor3 = Color3.fromRGB(70,53,40); tab.Nav.BackgroundTransparency = 1; corner(tab.Nav,5)
         tab.Border=stroke(tab.Nav,Color3.fromRGB(196,153,97),1)
         tab.Image = icon(tab.Nav, tab.Icon, tab.Name:sub(1,1)); tab.Image.Position = UDim2.fromOffset(9,11); tab.Image.Size = UDim2.fromOffset(17,17)
@@ -863,7 +869,7 @@ function Library:CreateWindow(options)
                 self.Chevron.AnchorPoint=Vector2.new(1,.5);self.Chevron.Position=UDim2.new(1,-7,.5,0);self.Chevron.Size=UDim2.fromOffset(14,14)
             end
             local sub={Name=subSpec.Name or 'Page',Section=self.Section,Columns=self.Columns}
-            sub.Button=button(nav,'');sub.Button.Name='SubTab_'..sub.Name;sub.Button.Size=UDim2.new(1,0,0,34);sub.Button.LayoutOrder=self.Nav.LayoutOrder+#self.SubTabs+1;sub.Button.BackgroundColor3=Color3.fromRGB(63,48,36);sub.Button.BackgroundTransparency=1;corner(sub.Button,5)
+            sub.Button=button(nav,'');sub.Button.Name='SubTab_'..sub.Name;sub.Button.Size=UDim2.new(1,0,0,34);sub.Button.LayoutOrder=self.Nav.LayoutOrder+#self.SubTabs+1;sub.Button.BackgroundColor3=Color3.fromRGB(63,48,36);sub.Button.BackgroundTransparency=1;sub.Button.ClipsDescendants=true;sub.Button.Visible=false;corner(sub.Button,5)
             sub.Icon=icon(sub.Button,subSpec.Icon or 'circle',sub.Name:sub(1,1));sub.Icon.Size=UDim2.fromOffset(14,14)
             sub.Caption=label(sub.Button,sub.Name,12,palette.muted);sub.Caption.TextTruncate=Enum.TextTruncate.AtEnd
             sub.Indicator=create('Frame',{AnchorPoint=Vector2.new(0,.5),Position=UDim2.new(0,0,.5,0),Size=UDim2.fromOffset(2,16),BackgroundColor3=palette.gold,BackgroundTransparency=1,BorderSizePixel=0},sub.Button);corner(sub.Indicator,1)
@@ -874,7 +880,24 @@ function Library:CreateWindow(options)
                 self.Chevron.Visible=not window.Compact
                 animate(self.Chevron,{Rotation=self.Expanded and 90 or 0})
                 for _,item in ipairs(self.SubTabs) do
-                    item.Button.Visible=self.Expanded==true and window.Active==self
+                    local open=self.Expanded==true and window.Active==self
+                    if item.NavOpen~=open then
+                        item.NavOpen=open;item.NavGeneration=(item.NavGeneration or 0)+1
+                        local generation=item.NavGeneration
+                        if item.NavTween then item.NavTween:Cancel() end
+                        item.Button.Active=open
+                        if options.ReducedMotion then
+                            item.Button.Visible=open;item.Button.Size=UDim2.new(1,0,0,open and 34 or 0)
+                        else
+                            if open then
+                                if not item.Button.Visible then item.Button.Size=UDim2.new(1,0,0,0) end
+                                item.Button.Visible=true
+                            end
+                            item.NavTween=TweenService:Create(item.Button,TweenInfo.new(.2,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Size=UDim2.new(1,0,0,open and 34 or 0)})
+                            item.NavTween:Play()
+                            if not open then task.delay(.21,function() if item.Button.Parent and item.NavGeneration==generation and not item.NavOpen then item.Button.Visible=false end end) end
+                        end
+                    end
                     item.Icon.Position=UDim2.fromOffset(window.Compact and 9 or 21,10)
                     item.Caption.Position=UDim2.fromOffset(43,0);item.Caption.Size=UDim2.new(1,-46,1,0);item.Caption.Visible=not window.Compact
                 end
