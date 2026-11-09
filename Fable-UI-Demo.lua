@@ -837,11 +837,29 @@ function Library:CreateWindow(options)
         end
         return tab
     end
+    -- Inset bookbinding corners: purely decorative, no hit targets or external assets.
+    if options.EdgeOrnaments ~= false then
+        local ornaments=create('Frame',{Name='EdgeOrnaments',Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Active=false,ZIndex=6},root)
+        local function edgeCorner(x,y,rotation)
+            local frame=create('Frame',{AnchorPoint=Vector2.new(x,y),Position=UDim2.new(x,x==0 and 4 or -4,y,y==0 and 4 or -4),Size=UDim2.fromOffset(22,22),Rotation=rotation,BackgroundTransparency=1,Active=false,ZIndex=6},ornaments)
+            local function line(x0,y0,w,h,opacity)
+                local item=create('Frame',{Position=UDim2.fromOffset(x0,y0),Size=UDim2.fromOffset(w,h),BackgroundColor3=Color3.fromRGB(214,172,114),BackgroundTransparency=opacity,BorderSizePixel=0,Active=false,ZIndex=6},frame)
+                corner(item,1)
+            end
+            line(5,2,14,1,.2);line(2,5,1,14,.2)
+            line(8,5,11,1,.55);line(5,8,1,11,.55)
+            local diamond=create('Frame',{Position=UDim2.fromOffset(5,5),Size=UDim2.fromOffset(4,4),Rotation=45,BackgroundColor3=Color3.fromRGB(233,195,143),BackgroundTransparency=.16,BorderSizePixel=0,Active=false,ZIndex=6},frame)
+            corner(diamond,1)
+        end
+        edgeCorner(0,0,0);edgeCorner(1,0,90);edgeCorner(1,1,180);edgeCorner(0,1,270)
+        local trim=create('Frame',{Position=UDim2.new(0,27,1,-5),Size=UDim2.new(1,-54,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.7,BorderSizePixel=0,Active=false,ZIndex=6},ornaments)
+        create('UIGradient',{Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.2,.4),NumberSequenceKeypoint.new(.5,0),NumberSequenceKeypoint.new(.8,.4),NumberSequenceKeypoint.new(1,1)})},trim)
+    end
     function window:Destroy() gui:Destroy() end
     responsive()
     return window
 end
-local window=Library:CreateWindow({Title='FABLE',Subtitle='SOFT TRANSITIONS / DEMO'})
+local window=Library:CreateWindow({Title='FABLE',Subtitle='GILDED EDGES / DEMO'})
 local state={farm=false,target='Closest',titanHits=3,bossHits=10,hover=150,reload=false,refill=false}
 local controls={}
 local outcome, plan, recoveryNote
