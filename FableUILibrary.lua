@@ -223,7 +223,7 @@ local function create(class, properties, parent)
 end
 local function icon(parent, name, fallback)
     local image = create('ImageLabel', {Name = 'Icon', BackgroundTransparency = 1, Image = Icons[name] or '', ImageColor3 = palette.gold, ScaleType = Enum.ScaleType.Fit}, parent)
-    local text = create('TextLabel', {BackgroundTransparency = 1, Size = UDim2.fromScale(1,1), Text = fallback or '', TextColor3 = palette.gold, Font = Enum.Font.GothamBold, TextSize = 11, Visible = true}, image)
+    local text = create('TextLabel', {BackgroundTransparency = 1, Size = UDim2.fromScale(1,1), Text = fallback or '', TextColor3 = palette.gold, Font = Enum.Font.GothamBold, TextSize = 12, Visible = true}, image)
     local function update() text.Visible = not image.IsLoaded end
     image:GetPropertyChangedSignal('IsLoaded'):Connect(update); update()
     return image
@@ -305,9 +305,8 @@ function Library:CreateWindow(options)
     gradient(separator,Color3.fromRGB(178,126,73),Color3.fromRGB(55,46,39),0)
     local medallion=create('Frame',{Position=UDim2.fromOffset(16,12),Size=UDim2.fromOffset(34,34),BackgroundColor3=Color3.fromRGB(20,19,20),BackgroundTransparency=.18,BorderSizePixel=0},top);corner(medallion,17);stroke(medallion,palette.gold,.32)
     local emblem = icon(top, 'book-open', 'F'); emblem.Position = UDim2.fromOffset(22,18); emblem.Size = UDim2.fromOffset(22,22)
-    local brand = label(top, options.Title or 'FABLE', 23, palette.parchment, Enum.Font.Garamond); brand.Position = UDim2.fromOffset(57,7); brand.Size = UDim2.fromOffset(160,26)
-    brand.TextStrokeColor3=Color3.fromRGB(17,13,13);brand.TextStrokeTransparency=.3
-    local subtitle = label(top, options.Subtitle or 'A PRIVATE CHRONICLE', 9, palette.muted, Enum.Font.Gotham); subtitle.Position = UDim2.fromOffset(58,33); subtitle.Size = UDim2.fromOffset(200,14)
+    local brand = label(top, options.Title or 'FABLE', 21, palette.parchment, Enum.Font.GothamBold); brand.Position = UDim2.fromOffset(57,7); brand.Size = UDim2.fromOffset(160,26)
+    local subtitle = label(top, options.Subtitle or 'A PRIVATE CHRONICLE', 10, palette.muted, Enum.Font.Gotham); subtitle.Position = UDim2.fromOffset(58,33); subtitle.Size = UDim2.fromOffset(200,14)
     local close = button(top, ''); close.Position = UDim2.new(1,-46,0,8); close.Size = UDim2.fromOffset(36,36)
     local closeIcon = icon(close, 'minus', '-'); closeIcon.AnchorPoint = Vector2.new(.5,.5); closeIcon.Position = UDim2.fromScale(.5,.5); closeIcon.Size = UDim2.fromOffset(17,17); closeIcon.ImageColor3 = palette.muted
     close.MouseEnter:Connect(function() animate(closeIcon, {ImageColor3 = palette.parchment}) end)
@@ -369,7 +368,7 @@ function Library:CreateWindow(options)
     watchScroll(nav)
     padding(nav, 15, 9, 14, 9)
     create('UIListLayout', {Padding = UDim.new(0,5), SortOrder = Enum.SortOrder.LayoutOrder}, nav)
-    local chapter = label(nav, 'THE CHRONICLE', 9, palette.muted, Enum.Font.GothamBold); chapter.Size = UDim2.new(1,0,0,24)
+    local chapter = label(nav, 'THE CHRONICLE', 10, palette.muted, Enum.Font.GothamBold); chapter.Size = UDim2.new(1,0,0,24)
     local divider = create('Frame', {Position = UDim2.fromOffset(171,58), Size = UDim2.new(0,1,1,-58), BackgroundColor3 = palette.line, BorderSizePixel = 0}, root)
     local content = create('Frame', {Position = UDim2.fromOffset(172,58), Size = UDim2.new(1,-172,1,-58), BackgroundTransparency = 1, ClipsDescendants = true}, root)
     local window = {Gui = gui, Tabs = {}, Active = nil, Compact = false}
@@ -389,8 +388,8 @@ function Library:CreateWindow(options)
         local toastScale = create('UIScale',{Scale=.94},toast)
         TweenService:Create(toastScale,TweenInfo.new(.24,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Scale=1}):Play()
         local mark = icon(toast, spec.Icon or 'sparkles', '!'); mark.Position=UDim2.fromOffset(13,15); mark.Size=UDim2.fromOffset(19,19); mark.ZIndex=12; local fallback = mark:FindFirstChildOfClass('TextLabel'); if fallback then fallback.ZIndex=13 end
-        local title = label(toast,spec.Title or 'Fable',15,palette.parchment,Enum.Font.Garamond); title.Position=UDim2.fromOffset(42,8); title.Size=UDim2.new(1,-54,0,23); title.ZIndex=12
-        local body = label(toast,spec.Content or '',11,palette.text); body.Position=UDim2.fromOffset(42,32); body.Size=UDim2.new(1,-54,0,35); body.TextWrapped=true; body.TextYAlignment=Enum.TextYAlignment.Top; body.ZIndex=12
+        local title = label(toast,spec.Title or 'Fable',15,palette.parchment,Enum.Font.GothamMedium); title.Position=UDim2.fromOffset(42,8); title.Size=UDim2.new(1,-54,0,23); title.ZIndex=12
+        local body = label(toast,spec.Content or '',12,palette.text); body.Position=UDim2.fromOffset(42,32); body.Size=UDim2.new(1,-54,0,35); body.TextWrapped=true; body.TextYAlignment=Enum.TextYAlignment.Top; body.ZIndex=12
         local dismissed = false
         local function dismiss()
             if dismissed then return end; dismissed=true
@@ -406,7 +405,7 @@ function Library:CreateWindow(options)
         local overlay=create('Frame',{Name='Dialog',Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=.35,BorderSizePixel=0,Active=true,ZIndex=30},gui)
         local panel=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.new(.88,0,0,165),BackgroundColor3=palette.panel,BorderSizePixel=0,ZIndex=31},overlay)
         create('UISizeConstraint',{MaxSize=Vector2.new(380,165)},panel);corner(panel,8);stroke(panel,palette.gold,.2)
-        local title=label(panel,spec.Title or 'Are you sure?',21,palette.parchment,Enum.Font.Garamond);title.Position=UDim2.fromOffset(18,12);title.Size=UDim2.new(1,-36,0,30);title.ZIndex=32
+        local title=label(panel,spec.Title or 'Are you sure?',21,palette.parchment,Enum.Font.GothamMedium);title.Position=UDim2.fromOffset(18,12);title.Size=UDim2.new(1,-36,0,30);title.ZIndex=32
         local body=label(panel,spec.Content or '',12,palette.text);body.Position=UDim2.fromOffset(18,48);body.Size=UDim2.new(1,-36,0,55);body.TextWrapped=true;body.TextYAlignment=Enum.TextYAlignment.Top;body.ZIndex=32
         local cancel=button(panel,spec.Cancel or 'CANCEL');cancel.Position=UDim2.new(1,-204,1,-49);cancel.Size=UDim2.fromOffset(88,34);cancel.BackgroundColor3=palette.elevated;cancel.BackgroundTransparency=0;cancel.TextSize=10;cancel.ZIndex=32;corner(cancel,5);stroke(cancel,palette.line)
         local accept=button(panel,spec.Confirm or 'CONFIRM');accept.Position=UDim2.new(1,-108,1,-49);accept.Size=UDim2.fromOffset(90,34);accept.BackgroundColor3=Color3.fromRGB(132,91,48);accept.BackgroundTransparency=0;accept.TextColor3=palette.parchment;accept.TextSize=10;accept.ZIndex=32;corner(accept,5);stroke(accept,palette.gold,.2)
@@ -462,7 +461,7 @@ function Library:CreateWindow(options)
         padding(tab.Page, 22, 22, 25, 22)
         create('UIListLayout', {Padding = UDim.new(0,12), SortOrder = Enum.SortOrder.LayoutOrder}, tab.Page)
         local eyebrow = label(tab.Page, spec.Eyebrow or 'FABLE  /  CHAPTER', 10, palette.gold, Enum.Font.GothamBold); eyebrow.Size = UDim2.new(1,0,0,14)
-        local heading = label(tab.Page, tab.Name, 29, palette.parchment, Enum.Font.Garamond); heading.Size = UDim2.new(1,0,0,32)
+        local heading = label(tab.Page, tab.Name, 25, palette.parchment, Enum.Font.GothamBold); heading.Size = UDim2.new(1,0,0,32)
         local flourish = create('Frame',{Size=UDim2.new(1,0,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.55,BorderSizePixel=0},tab.Page)
         gradient(flourish,Color3.fromRGB(235,197,136),Color3.fromRGB(30,26,25),0)
         local intro = label(tab.Page, spec.Description or '', 12, palette.muted); intro.TextWrapped = true; intro.Size = UDim2.new(1,0,0,30)
@@ -502,8 +501,7 @@ function Library:CreateWindow(options)
             gradient(cardEdge,Color3.fromRGB(231,194,139),Color3.fromRGB(76,58,48),90)
             gradient(card, Color3.fromRGB(61,49,42), Color3.fromRGB(23,22,26), 105)
             padding(card,15,16,15,16); create('UIListLayout', {Padding = UDim.new(0,10), SortOrder = Enum.SortOrder.LayoutOrder}, card)
-            local title = label(card, specification.Name or 'Section', 20, palette.parchment, Enum.Font.Garamond); title.Size = UDim2.new(1,0,0,28)
-            title.TextStrokeColor3=Color3.fromRGB(12,10,10);title.TextStrokeTransparency=.38
+            local title = label(card, specification.Name or 'Section', 16, palette.parchment, Enum.Font.GothamBold); title.Size = UDim2.new(1,0,0,28)
             local accent = create('Frame',{Position=UDim2.fromOffset(-16,-15),Size=UDim2.fromOffset(3,29),BackgroundColor3=palette.gold,BackgroundTransparency=.12,BorderSizePixel=0},title)
             corner(accent,2)
             local rule=create('Frame',{Position=UDim2.new(0,0,1,1),Size=UDim2.new(1,0,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.5,BorderSizePixel=0},title)
@@ -514,7 +512,7 @@ function Library:CreateWindow(options)
             local function row(name, description, height)
                 local frame = create('Frame', {Size = UDim2.new(1,0,0,height or 48), BackgroundTransparency = 1}, card)
                 local titleLabel = label(frame, name or '', 13, palette.text, Enum.Font.GothamMedium); titleLabel.Position = UDim2.fromOffset(0,1); titleLabel.Size = UDim2.new(1,-125,0,19); titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
-                if description then local d = label(frame, description, 11, palette.muted); d.Position = UDim2.fromOffset(0,22); d.Size = UDim2.new(1,-125,0,19); d.TextTruncate = Enum.TextTruncate.AtEnd end
+                if description then local d = label(frame, description, 12, palette.muted); d.Position = UDim2.fromOffset(0,22); d.Size = UDim2.new(1,-125,0,19); d.TextTruncate = Enum.TextTruncate.AtEnd end
                 return frame
             end
             function section:Toggle(spec2)
@@ -523,7 +521,7 @@ function Library:CreateWindow(options)
                 -- The clickable area is larger than the visible switch for touch use.
                 local hit = button(frame, '')
                 hit.Size = UDim2.fromScale(1,1); frame.BackgroundColor3=palette.gold; corner(frame,5)
-                local state = label(hit,'',9,palette.muted,Enum.Font.GothamBold)
+                local state = label(hit,'',10,palette.muted,Enum.Font.GothamBold)
                 state.AnchorPoint=Vector2.new(1,.5); state.Position=UDim2.new(1,-61,.5,0); state.Size=UDim2.fromOffset(33,48); state.TextXAlignment=Enum.TextXAlignment.Right
                 local track = create('Frame',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-2,.5,0),Size=UDim2.fromOffset(48,25),BackgroundColor3=palette.elevated,BorderSizePixel=0},hit)
                 corner(track,13)
@@ -551,7 +549,7 @@ function Library:CreateWindow(options)
                 local control = button(frame,''); control.AnchorPoint=Vector2.new(1,.5); control.Position=UDim2.new(1,0,.5,0); control.Size=UDim2.fromOffset(104,38)
                 control.BackgroundColor3=Color3.fromRGB(60,45,34); control.BackgroundTransparency=0; corner(control,6)
                 local outline=create('UIStroke',{Color=palette.gold,Transparency=.48,Thickness=1},control)
-                local caption=label(control,spec2.Action or 'OPEN',10,palette.parchment,Enum.Font.GothamBold); caption.Position=UDim2.fromOffset(11,0); caption.Size=UDim2.new(1,-30,1,0); caption.TextTruncate=Enum.TextTruncate.AtEnd
+                local caption=label(control,spec2.Action or 'OPEN',11,palette.parchment,Enum.Font.GothamBold); caption.Position=UDim2.fromOffset(11,0); caption.Size=UDim2.new(1,-30,1,0); caption.TextTruncate=Enum.TextTruncate.AtEnd
                 local arrow=icon(control,'arrow-right','>'); arrow.AnchorPoint=Vector2.new(1,.5); arrow.Position=UDim2.new(1,-9,.5,0); arrow.Size=UDim2.fromOffset(14,14)
                 control.MouseEnter:Connect(function() animate(control,{BackgroundColor3=Color3.fromRGB(96,66,39)}); animate(outline,{Transparency=.02}) end)
                 control.MouseLeave:Connect(function() animate(control,{BackgroundColor3=Color3.fromRGB(60,45,34)}); animate(outline,{Transparency=.48}) end)
@@ -620,7 +618,7 @@ function Library:CreateWindow(options)
                 local expanded = false
                 local frame = row(spec2.Name,spec2.Description,52); frame.ClipsDescendants = true
                 local control = button(frame,''); control.AnchorPoint=Vector2.new(1,0); control.Position=UDim2.new(1,0,0,7); control.Size=UDim2.fromOffset(116,38); control.BackgroundColor3=Color3.fromRGB(30,28,28); control.BackgroundTransparency=0; corner(control,6); stroke(control,palette.gold,.55)
-                local text = label(control,'',11,palette.parchment); text.Position=UDim2.fromOffset(9,0); text.Size=UDim2.new(1,-32,1,0); text.TextTruncate=Enum.TextTruncate.AtEnd
+                local text = label(control,'',12,palette.parchment); text.Position=UDim2.fromOffset(9,0); text.Size=UDim2.new(1,-32,1,0); text.TextTruncate=Enum.TextTruncate.AtEnd
                 local arrow = icon(control,'chevron-down','v'); arrow.AnchorPoint=Vector2.new(1,.5); arrow.Position=UDim2.new(1,-8,.5,0); arrow.Size=UDim2.fromOffset(14,14)
                 local list = create('ScrollingFrame',{Position=UDim2.fromOffset(0,52),Size=UDim2.new(1,0,0,0),BackgroundColor3=palette.elevated,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=palette.gold,AutomaticCanvasSize=Enum.AutomaticSize.Y,CanvasSize=UDim2.new(),Visible=false},frame)
                 watchScroll(list); corner(list,5); create('UIListLayout',{Padding=UDim.new(0,2),SortOrder=Enum.SortOrder.LayoutOrder},list); padding(list,4,4,4,4)
@@ -691,7 +689,7 @@ function Library:CreateWindow(options)
                 end
                 local api={};function api:Set(v,silent) if not table.find(values,v) then return end;value=v;render();if not silent then fire(spec2.Callback,value) end end;function api:Get() return value end
                 for _,v in ipairs(values) do
-                    local b=button(bar,tostring(v));b.Size=UDim2.new(1/#values,-3,1,0);b.TextSize=11;b.TextTruncate=Enum.TextTruncate.AtEnd;b.BackgroundColor3=Color3.fromRGB(105,74,43);corner(b,4)
+                    local b=button(bar,tostring(v));b.Size=UDim2.new(1/#values,-3,1,0);b.TextSize=12;b.TextTruncate=Enum.TextTruncate.AtEnd;b.BackgroundColor3=Color3.fromRGB(105,74,43);corner(b,4)
                     local line=create('Frame',{AnchorPoint=Vector2.new(.5,1),Position=UDim2.new(.5,0,1,-1),Size=UDim2.new(0,0,0,2),BackgroundColor3=Color3.fromRGB(255,215,149),BackgroundTransparency=1,BorderSizePixel=0},b);corner(line,1)
                     controls[v]={button=b,line=line};b.Activated:Connect(function() api:Set(v) end)
                 end
@@ -761,7 +759,7 @@ function Library:CreateWindow(options)
                 local key=typeof(spec2.Default)=='EnumItem' and spec2.Default or nil
                 local capturing=false
                 local frame=row(spec2.Name,spec2.Description,52)
-                local control=button(frame,'');control.AnchorPoint=Vector2.new(1,.5);control.Position=UDim2.new(1,0,.5,0);control.Size=UDim2.fromOffset(112,38);control.BackgroundColor3=palette.elevated;control.BackgroundTransparency=0;control.TextSize=11;corner(control,5);stroke(control,palette.gold,.55)
+                local control=button(frame,'');control.AnchorPoint=Vector2.new(1,.5);control.Position=UDim2.new(1,0,.5,0);control.Size=UDim2.fromOffset(112,38);control.BackgroundColor3=palette.elevated;control.BackgroundTransparency=0;control.TextSize=12;corner(control,5);stroke(control,palette.gold,.55)
                 local function render() control.Text=capturing and 'PRESS A KEY' or (key and key.Name or 'UNBOUND') end
                 local api={};function api:Set(v,silent) if v~=nil and (typeof(v)~='EnumItem' or v.EnumType~=Enum.KeyCode) then return end;key=v;capturing=false;render();if not silent then fire(spec2.ChangedCallback,key) end end;function api:Get() return key end
                 control.Activated:Connect(function() capturing=not capturing;render() end)
@@ -785,7 +783,7 @@ function Library:CreateWindow(options)
             function section:Paragraph(spec2)
                 local frame = create('Frame',{Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundColor3=palette.elevated,BorderSizePixel=0},card); corner(frame,5); padding(frame,10,12,10,12)
                 create('UIListLayout',{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder},frame)
-                local title = label(frame,spec2.Title or '',15,palette.parchment,Enum.Font.Garamond); title.Size=UDim2.new(1,0,0,20)
+                local title = label(frame,spec2.Title or '',15,palette.parchment,Enum.Font.GothamMedium); title.Size=UDim2.new(1,0,0,20)
                 local body = label(frame,spec2.Body or '',12,palette.text); body.TextWrapped=true; body.TextYAlignment=Enum.TextYAlignment.Top; body.AutomaticSize=Enum.AutomaticSize.Y; body.Size=UDim2.new(1,0,0,0)
                 local api={}; function api:Set(text) body.Text=tostring(text) end; return api
             end
