@@ -852,7 +852,22 @@ function Library:CreateWindow(options)
             corner(diamond,1)
         end
         edgeCorner(0,0,0);edgeCorner(1,0,90);edgeCorner(1,1,180);edgeCorner(0,1,270)
-        local trim=create('Frame',{Position=UDim2.new(0,27,1,-5),Size=UDim2.new(1,-54,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.7,BorderSizePixel=0,Active=false,ZIndex=6},ornaments)
+        -- Bookbinding-inspired flourishes at the centre of both vertical edges.
+        local function edgeFlourish(right)
+            local edge=create('Frame',{AnchorPoint=Vector2.new(right and 1 or 0,.5),Position=UDim2.new(right and 1 or 0,right and -4 or 4,.5,0),Size=UDim2.fromOffset(16,150),BackgroundTransparency=1,Active=false,ZIndex=6},ornaments)
+            local function strokeLine(x,y,width,height,angle,alpha)
+                local part=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromOffset(right and 16-x or x,y),Size=UDim2.fromOffset(width,height),Rotation=right and -angle or angle,BackgroundColor3=Color3.fromRGB(224,181,121),BackgroundTransparency=alpha,BorderSizePixel=0,Active=false,ZIndex=6},edge)
+                corner(part,1)
+            end
+            strokeLine(2,75,1,138,0,.55)
+            strokeLine(5,75,1,96,0,.25)
+            strokeLine(8,57,1,19,-38,.25);strokeLine(8,93,1,19,38,.25)
+            strokeLine(8,65,1,15,-48,.17);strokeLine(8,85,1,15,48,.17)
+            strokeLine(11,75,6,6,45,.10)
+            strokeLine(5,37,3,3,45,.30);strokeLine(5,113,3,3,45,.30)
+        end
+        edgeFlourish(false);edgeFlourish(true)
+        local trim=create('Frame',{Position=UDim2.new(0,27,1,-5),Size=UDim2.new(1,-54,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.46,BorderSizePixel=0,Active=false,ZIndex=6},ornaments)
         create('UIGradient',{Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.2,.4),NumberSequenceKeypoint.new(.5,0),NumberSequenceKeypoint.new(.8,.4),NumberSequenceKeypoint.new(1,1)})},trim)
     end
     function window:Destroy() gui:Destroy() end
