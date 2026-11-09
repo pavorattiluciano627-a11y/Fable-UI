@@ -372,6 +372,20 @@ function Library:CreateWindow(options)
     local divider = create('Frame', {Position = UDim2.fromOffset(171,58), Size = UDim2.new(0,1,1,-58), BackgroundColor3 = palette.line, BorderSizePixel = 0}, root)
     local content = create('Frame', {Position = UDim2.fromOffset(172,58), Size = UDim2.new(1,-172,1,-58), BackgroundTransparency = 1, ClipsDescendants = true}, root)
     local window = {Gui = gui, Tabs = {}, Active = nil, Compact = false}
+    local tooltip=create('Frame',{Name='SidebarTooltip',Size=UDim2.fromOffset(150,31),BackgroundColor3=Color3.fromRGB(36,30,29),BorderSizePixel=0,Visible=false,Active=false,ZIndex=20},root)
+    corner(tooltip,5);stroke(tooltip,palette.gold,.35)
+    local tooltipText=label(tooltip,'',12,palette.parchment,Enum.Font.GothamMedium);tooltipText.Position=UDim2.fromOffset(10,0);tooltipText.Size=UDim2.new(1,-20,1,0);tooltipText.TextTruncate=Enum.TextTruncate.AtEnd;tooltipText.ZIndex=21
+    local hoveredTooltip
+    local function hideSidebarTooltip(target)
+        if not target or hoveredTooltip==target then hoveredTooltip=nil;tooltip.Visible=false end
+    end
+    local function showSidebarTooltip(target,name)
+        if not window.Compact or not target.Visible then return end
+        local y=target.AbsolutePosition.Y-root.AbsolutePosition.Y+target.AbsoluteSize.Y/2-15
+        tooltip.Position=UDim2.fromOffset((window.SidebarWidth or 54)+7,math.clamp(y,59,math.max(59,root.AbsoluteSize.Y-35)))
+        tooltipText.Text=tostring(name);tooltip.Visible=true;hoveredTooltip=target
+    end
+    nav:GetPropertyChangedSignal('CanvasPosition'):Connect(function() hideSidebarTooltip() end)
     local sidebarFooter=create('Frame',{Name='SidebarFooter',AnchorPoint=Vector2.new(0,1),Position=UDim2.new(0,0,1,0),Size=UDim2.fromOffset(172,46),BackgroundColor3=palette.sidebar,BackgroundTransparency=.08,BorderSizePixel=0,ZIndex=2},root)
     local footerLine=create('Frame',{Size=UDim2.new(1,0,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.65,BorderSizePixel=0,ZIndex=3},sidebarFooter)
     local sidebarHandle=button(sidebarFooter,'')
@@ -423,6 +437,7 @@ function Library:CreateWindow(options)
         if width==window.SidebarWidth and compact==window.Compact then return end
         local initial=window.SidebarWidth==nil
         window.Compact=compact;window.SidebarWidth=width
+        hideSidebarTooltip()
         local navSize=UDim2.new(0,width,1,-104)
         local footerSize=UDim2.fromOffset(width,46)
         local dividerPos=UDim2.fromOffset(width-1,58)
@@ -461,8 +476,8 @@ function Library:CreateWindow(options)
         tab.Image = icon(tab.Nav, tab.Icon, tab.Name:sub(1,1)); tab.Image.Position = UDim2.fromOffset(9,11); tab.Image.Size = UDim2.fromOffset(17,17)
         tab.Caption = label(tab.Nav, tab.Name, 13, palette.muted); tab.Caption.Position = UDim2.fromOffset(35,0); tab.Caption.Size = UDim2.new(1,-39,1,0); tab.Caption.TextTruncate = Enum.TextTruncate.AtEnd
         tab.Indicator=create('Frame',{AnchorPoint=Vector2.new(0,.5),Position=UDim2.new(0,0,.5,0),Size=UDim2.fromOffset(3,4),BackgroundColor3=palette.gold,BackgroundTransparency=1,BorderSizePixel=0},tab.Nav);corner(tab.Indicator,2)
-        tab.Nav.MouseEnter:Connect(function() if window.Active ~= tab then animate(tab.Nav,{BackgroundTransparency = .5}) end end)
-        tab.Nav.MouseLeave:Connect(function() if window.Active ~= tab then animate(tab.Nav,{BackgroundTransparency = 1}) end end)
+        tab.Nav.MouseEnter:Connect(function() if window.Active ~= tab then animate(tab.Nav,{BackgroundTransparency = .5}) end;showSidebarTooltip(tab.Nav,tab.Name) end)
+        tab.Nav.MouseLeave:Connect(function() if window.Active ~= tab then animate(tab.Nav,{BackgroundTransparency = 1}) end;hideSidebarTooltip(tab.Nav) end)
         tab.Layer=create('CanvasGroup',{Size=UDim2.fromScale(1,1),BackgroundTransparency=1,BorderSizePixel=0,Visible=false,GroupTransparency=0},content)
         tab.Page = create('ScrollingFrame', {Size = UDim2.fromScale(1,1), BackgroundTransparency = 1, BorderSizePixel = 0,
             ScrollBarThickness = 3, ScrollBarImageColor3 = palette.gold, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, tab.Layer)
@@ -507,6 +522,7 @@ function Library:CreateWindow(options)
             end
         end
         tab.Nav.Activated:Connect(function()
+            hideSidebarTooltip()
             if tab.SubTabs and #tab.SubTabs>0 then
                 if window.Active == tab then
                     tab.Expanded=not tab.Expanded;tab:UpdateSubNavigation()
@@ -923,7 +939,9 @@ function Library:CreateWindow(options)
                 self.ActiveSubTab=selected;heading.Text=selected.Name
                 self:UpdateSubNavigation()
             end
-            sub.Button.Activated:Connect(function() self.Expanded=true;window:SelectTab(self);self:SelectSubTab(sub) end)
+            sub.Button.MouseEnter:Connect(function() showSidebarTooltip(sub.Button,sub.Name) end)
+            sub.Button.MouseLeave:Connect(function() hideSidebarTooltip(sub.Button) end)
+            sub.Button.Activated:Connect(function() hideSidebarTooltip();self.Expanded=true;window:SelectTab(self);self:SelectSubTab(sub) end)
             if not self.ActiveSubTab then self:SelectSubTab(sub) else self:UpdateSubNavigation() end
             function sub:Select() tab.Expanded=true;window:SelectTab(tab);tab:SelectSubTab(self) end
             return sub
@@ -959,7 +977,7 @@ function Library:CreateWindow(options)
             strokeLine(11,75,6,6,45,.10)
             strokeLine(5,37,3,3,45,.30);strokeLine(5,113,3,3,45,.30)
         end
-        edgeFlourish(false);edgeFlourish(true)
+        edgeFlourish(true) -- Keep the navigation side clear of ornaments.
         local trim=create('Frame',{Position=UDim2.new(0,27,1,-5),Size=UDim2.new(1,-54,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.46,BorderSizePixel=0,Active=false,ZIndex=6},ornaments)
         create('UIGradient',{Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.2,.4),NumberSequenceKeypoint.new(.5,0),NumberSequenceKeypoint.new(.8,.4),NumberSequenceKeypoint.new(1,1)})},trim)
     end
