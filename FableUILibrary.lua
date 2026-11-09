@@ -519,7 +519,7 @@ function Library:CreateWindow(options)
                 local step=spec2.Step or 1; assert(step>0,'Slider step must be positive')
                 local value=math.clamp(spec2.Default or min,min,max); local frame=row(spec2.Name,spec2.Description,92)
                 local badge=create('Frame',{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,0,0,0),Size=UDim2.fromOffset(81,27),BackgroundColor3=Color3.fromRGB(48,39,31),BorderSizePixel=0},frame);corner(badge,5);stroke(badge,palette.gold,.55)
-                local amount=label(badge,'',12,palette.parchment,Enum.Font.GothamBold); amount.Size=UDim2.fromScale(1,1); amount.TextXAlignment=Enum.TextXAlignment.Center
+                local amount=create('TextBox',{Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Text='',TextColor3=palette.parchment,Font=Enum.Font.GothamBold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Center,ClearTextOnFocus=false},badge)
                 -- The rail is thin, but its invisible input area remains finger-sized.
                 local hit=button(frame,''); hit.Position=UDim2.new(0,0,0,43); hit.Size=UDim2.new(1,0,0,40)
                 local rail=create('Frame',{Position=UDim2.new(0,10,.5,-3),Size=UDim2.new(1,-20,0,6),BackgroundColor3=Color3.fromRGB(18,18,20),BorderSizePixel=0},hit);corner(rail,4);stroke(rail,palette.line,.2)
@@ -534,12 +534,17 @@ function Library:CreateWindow(options)
                     if number~=number or math.abs(number)==math.huge then number=min end
                     local nextValue=math.clamp(min+math.floor((number-min)/step+.5)*step,min,max)
                     nextValue=tonumber(string.format('%.8f',nextValue)) or nextValue
-                    local changed=nextValue~=value; value=nextValue; amount.Text=tostring(value)
+                    local changed=nextValue~=value; value=nextValue; if not amount:IsFocused() then amount.Text=tostring(value) end
                     local fraction=(value-min)/(max-min)
                     animate(fill,{Size=UDim2.fromScale(fraction,1)}); animate(thumb,{Position=UDim2.fromScale(fraction,.5)})
                     for _,layer in ipairs(thumbGlow) do animate(layer,{Position=UDim2.fromScale(fraction,.5)}) end
                     if changed and not silent then fire(spec2.Callback,value) end
                 end; function api:Get() return value end
+                amount.FocusLost:Connect(function()
+                    local entered=tonumber(amount.Text)
+                    if entered and entered==entered and math.abs(entered)<math.huge then api:Set(entered) end
+                    amount.Text=tostring(value)
+                end)
                 local activeInput
                 local function update(input) api:Set(min+math.clamp((input.Position.X-rail.AbsolutePosition.X)/math.max(rail.AbsoluteSize.X,1),0,1)*(max-min)) end
                 hit.InputBegan:Connect(function(input)
@@ -749,6 +754,38 @@ function Library:CreateWindow(options)
             end
             return section
         end
+        -- Two columns on wide screens; the same cards stack on smaller screens.
+        function tab:Columns()
+            local group=create('Frame',{Size=UDim2.new(1,0,0,1),BackgroundTransparency=1},self.Page)
+            local left=create('Frame',{BackgroundTransparency=1},group)
+            local right=create('Frame',{BackgroundTransparency=1},group)
+            local leftList=create('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},left)
+            local rightList=create('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},right)
+            local function arrange()
+                if not group.Parent then return end
+                local width=group.AbsoluteSize.X
+                if width<=0 then return end
+                local stacked=width<600
+                local leftHeight=leftList.AbsoluteContentSize.Y
+                local rightHeight=rightList.AbsoluteContentSize.Y
+                if stacked then
+                    left.Position=UDim2.fromOffset(0,0);left.Size=UDim2.new(1,0,0,leftHeight)
+                    right.Position=UDim2.fromOffset(0,leftHeight+12);right.Size=UDim2.new(1,0,0,rightHeight)
+                else
+                    left.Position=UDim2.fromOffset(0,0);left.Size=UDim2.new(.5,-6,0,leftHeight)
+                    right.Position=UDim2.new(.5,6,0,0);right.Size=UDim2.new(.5,-6,0,rightHeight)
+                end
+                local height=stacked and (leftHeight+rightHeight+12) or math.max(leftHeight,rightHeight)
+                group.Size=UDim2.new(1,0,0,math.max(1,height))
+            end
+            group:GetPropertyChangedSignal('AbsoluteSize'):Connect(arrange)
+            leftList:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(arrange)
+            rightList:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(arrange)
+            local sectionMethod=self.Section
+            local columns={Left={Page=left,Section=sectionMethod},Right={Page=right,Section=sectionMethod}}
+            task.defer(arrange)
+            return columns
+        end
         -- Subtabs share the tab's scrolling page and the same section API.
         function tab:SubTab(subSpec)
             subSpec=subSpec or {}
@@ -758,7 +795,7 @@ function Library:CreateWindow(options)
                 corner(self.SubBar,6);stroke(self.SubBar,palette.line,.35);watchScroll(self.SubBar)
                 create('UIListLayout',{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder},self.SubBar);padding(self.SubBar,4,4,4,4)
             end
-            local sub={Name=subSpec.Name or 'Page',Section=self.Section}
+            local sub={Name=subSpec.Name or 'Page',Section=self.Section,Columns=self.Columns}
             sub.Button=button(self.SubBar,sub.Name);sub.Button.Size=UDim2.fromOffset(math.clamp(#sub.Name*8+32,90,180),33);sub.Button.TextSize=12;sub.Button.BackgroundColor3=Color3.fromRGB(102,71,42);corner(sub.Button,5)
             sub.Page=create('Frame',{Name='SubPage',Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,Visible=false},self.Page)
             create('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},sub.Page)
