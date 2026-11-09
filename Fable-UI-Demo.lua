@@ -210,9 +210,14 @@ local palette = {
     parchment = Color3.fromRGB(229, 216, 188), text = Color3.fromRGB(204, 195, 180),
     muted = Color3.fromRGB(135, 126, 115), danger = Color3.fromRGB(159, 98, 82),
 }
+local nextOrder = setmetatable({}, {__mode = 'k'})
 local function create(class, properties, parent)
     local instance = Instance.new(class)
     for key, value in pairs(properties or {}) do instance[key] = value end
+    if parent and instance:IsA('GuiObject') and (not properties or properties.LayoutOrder == nil) then
+        nextOrder[parent] = (nextOrder[parent] or 0) + 1
+        instance.LayoutOrder = nextOrder[parent]
+    end
     instance.Parent = parent
     return instance
 end
@@ -266,15 +271,26 @@ function Library:CreateWindow(options)
     gradient(top, Color3.fromRGB(51,42,35), Color3.fromRGB(23,23,26), 0)
     local glow = create('Frame', {Position = UDim2.new(0,0,1,-2), Size = UDim2.new(1,0,0,2), BackgroundColor3 = palette.gold, BackgroundTransparency = .45, BorderSizePixel = 0}, top)
     gradient(glow, Color3.fromRGB(96,72,49), Color3.fromRGB(207,168,108), 0)
-    TweenService:Create(glow, TweenInfo.new(2.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {BackgroundTransparency = .75}):Play()
+    if not options.ReducedMotion then
+        TweenService:Create(glow, TweenInfo.new(2.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {BackgroundTransparency = .75}):Play()
+    end
     local emblem = icon(top, 'book-open', 'F'); emblem.Position = UDim2.fromOffset(18,17); emblem.Size = UDim2.fromOffset(25,25)
     local brand = label(top, options.Title or 'FABLE', 20, palette.parchment, Enum.Font.Garamond); brand.Position = UDim2.fromOffset(51,8); brand.Size = UDim2.fromOffset(160,24)
     local subtitle = label(top, options.Subtitle or 'A PRIVATE CHRONICLE', 9, palette.muted, Enum.Font.Gotham); subtitle.Position = UDim2.fromOffset(52,32); subtitle.Size = UDim2.fromOffset(200,14)
     local close = button(top, ''); close.Position = UDim2.new(1,-46,0,8); close.Size = UDim2.fromOffset(36,36)
-    local closeIcon = icon(close, 'x', 'X'); closeIcon.AnchorPoint = Vector2.new(.5,.5); closeIcon.Position = UDim2.fromScale(.5,.5); closeIcon.Size = UDim2.fromOffset(17,17); closeIcon.ImageColor3 = palette.muted
+    local closeIcon = icon(close, 'minus', '-'); closeIcon.AnchorPoint = Vector2.new(.5,.5); closeIcon.Position = UDim2.fromScale(.5,.5); closeIcon.Size = UDim2.fromOffset(17,17); closeIcon.ImageColor3 = palette.muted
     close.MouseEnter:Connect(function() animate(closeIcon, {ImageColor3 = palette.parchment}) end)
     close.MouseLeave:Connect(function() animate(closeIcon, {ImageColor3 = palette.muted}) end)
-    close.Activated:Connect(function() gui:Destroy() end)
+    local reopen = button(gui, '')
+    reopen.Name = 'Reopen'; reopen.AnchorPoint = Vector2.new(1, .5); reopen.Position = UDim2.new(1,-14,.5,0)
+    reopen.Size = UDim2.fromOffset(44,44); reopen.BackgroundColor3 = palette.panel; reopen.BackgroundTransparency = 0; reopen.Visible = false
+    corner(reopen, 22); stroke(reopen, palette.gold, .25)
+    local reopenIcon = icon(reopen, 'book-open', 'F'); reopenIcon.Size = UDim2.fromOffset(21,21); reopenIcon.AnchorPoint = Vector2.new(.5,.5); reopenIcon.Position = UDim2.fromScale(.5,.5)
+    close.Activated:Connect(function() root.Visible = false; reopen.Visible = true end)
+    reopen.Activated:Connect(function()
+        root.Visible = true; reopen.Visible = false; scale.Scale = .97
+        TweenService:Create(scale, TweenInfo.new(.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
     local dragging, dragStart, startPos, dragInput
     top.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -286,10 +302,20 @@ function Library:CreateWindow(options)
     local dragConnection = InputService.InputChanged:Connect(function(input)
         if dragging and input == dragInput and root.Parent then
             local delta = input.Position - dragStart
-            root.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            local camera = workspace.CurrentCamera
+            if not camera then return end
+            local viewport, size = camera.ViewportSize, root.AbsoluteSize
+            local x = math.clamp(startPos.X.Scale * viewport.X + startPos.X.Offset + delta.X, math.min(size.X/2, viewport.X/2), math.max(viewport.X-size.X/2, viewport.X/2))
+            local y = math.clamp(startPos.Y.Scale * viewport.Y + startPos.Y.Offset + delta.Y, math.min(size.Y/2, viewport.Y/2), math.max(viewport.Y-size.Y/2, viewport.Y/2))
+            root.Position = UDim2.fromOffset(x,y)
         end
     end)
-    gui.Destroying:Connect(function() dragConnection:Disconnect() end)
+    local keyConnection = InputService.InputBegan:Connect(function(input, processed)
+        if not processed and not InputService:GetFocusedTextBox() and input.KeyCode == Enum.KeyCode.RightShift then
+            root.Visible = not root.Visible; reopen.Visible = not root.Visible
+        end
+    end)
+    gui.Destroying:Connect(function() dragConnection:Disconnect(); keyConnection:Disconnect() end)
     local nav = create('ScrollingFrame', {Position = UDim2.fromOffset(0,58), Size = UDim2.new(0,172,1,-58),
         BackgroundColor3 = palette.sidebar, BorderSizePixel = 0, ScrollBarThickness = 2, ScrollBarImageColor3 = palette.line,
         AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, root)
@@ -299,6 +325,28 @@ function Library:CreateWindow(options)
     local divider = create('Frame', {Position = UDim2.fromOffset(171,58), Size = UDim2.new(0,1,1,-58), BackgroundColor3 = palette.line, BorderSizePixel = 0}, root)
     local content = create('Frame', {Position = UDim2.fromOffset(172,58), Size = UDim2.new(1,-172,1,-58), BackgroundTransparency = 1, ClipsDescendants = true}, root)
     local window = {Gui = gui, Tabs = {}, Active = nil, Compact = false}
+    local toastHolder = create('Frame', {Name='Notifications', AnchorPoint=Vector2.new(1,1), Position=UDim2.new(1,-14,1,-14), Size=UDim2.new(1,-28,1,-28), BackgroundTransparency=1, ZIndex=10}, gui)
+    create('UISizeConstraint', {MaxSize=Vector2.new(320,400)}, toastHolder)
+    create('UIListLayout', {FillDirection=Enum.FillDirection.Vertical, HorizontalAlignment=Enum.HorizontalAlignment.Right, VerticalAlignment=Enum.VerticalAlignment.Bottom, Padding=UDim.new(0,8), SortOrder=Enum.SortOrder.LayoutOrder}, toastHolder)
+    function window:Notify(spec)
+        spec = spec or {}
+        local toast = create('Frame',{Size=UDim2.new(1,0,0,76),BackgroundColor3=palette.panel,BorderSizePixel=0,ClipsDescendants=true,ZIndex=11},toastHolder)
+        corner(toast,7); stroke(toast,palette.gold,.45)
+        local toastScale = create('UIScale',{Scale=.94},toast)
+        TweenService:Create(toastScale,TweenInfo.new(.24,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Scale=1}):Play()
+        local mark = icon(toast, spec.Icon or 'sparkles', '!'); mark.Position=UDim2.fromOffset(13,15); mark.Size=UDim2.fromOffset(19,19); mark.ZIndex=12; local fallback = mark:FindFirstChildOfClass('TextLabel'); if fallback then fallback.ZIndex=13 end
+        local title = label(toast,spec.Title or 'Fable',15,palette.parchment,Enum.Font.Garamond); title.Position=UDim2.fromOffset(42,8); title.Size=UDim2.new(1,-54,0,23); title.ZIndex=12
+        local body = label(toast,spec.Content or '',11,palette.text); body.Position=UDim2.fromOffset(42,32); body.Size=UDim2.new(1,-54,0,35); body.TextWrapped=true; body.TextYAlignment=Enum.TextYAlignment.Top; body.ZIndex=12
+        local dismissed = false
+        local function dismiss()
+            if dismissed then return end; dismissed=true
+            animate(toast,{BackgroundTransparency=1}); animate(title,{TextTransparency=1}); animate(body,{TextTransparency=1}); animate(mark,{ImageTransparency=1})
+            task.delay(.2,function() if toast.Parent then toast:Destroy() end end)
+        end
+        task.delay(math.clamp(tonumber(spec.Duration) or 4,1,30),dismiss)
+        return {Dismiss=dismiss}
+    end
+    function window:SetVisible(visible) root.Visible = visible == true; reopen.Visible = not root.Visible end
     local function responsive()
         local compact = root.AbsoluteSize.X < 600
         if compact == window.Compact then return end
@@ -324,6 +372,8 @@ function Library:CreateWindow(options)
         create('UIListLayout', {Padding = UDim.new(0,12), SortOrder = Enum.SortOrder.LayoutOrder}, tab.Page)
         local eyebrow = label(tab.Page, spec.Eyebrow or 'FABLE  /  CHAPTER', 10, palette.gold, Enum.Font.GothamBold); eyebrow.Size = UDim2.new(1,0,0,14)
         local heading = label(tab.Page, tab.Name, 29, palette.parchment, Enum.Font.Garamond); heading.Size = UDim2.new(1,0,0,32)
+        local flourish = create('Frame',{Size=UDim2.new(1,0,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.55,BorderSizePixel=0},tab.Page)
+        gradient(flourish,Color3.fromRGB(235,197,136),Color3.fromRGB(30,26,25),0)
         local intro = label(tab.Page, spec.Description or '', 12, palette.muted); intro.TextWrapped = true; intro.Size = UDim2.new(1,0,0,30)
         function window:SelectTab(selected)
             for _, other in ipairs(self.Tabs) do
@@ -333,6 +383,8 @@ function Library:CreateWindow(options)
                 animate(other.Image, {ImageColor3 = active and palette.gold or palette.muted})
             end
             self.Active = selected
+            selected.Page.CanvasPosition = Vector2.new(0,0)
+            selected.Page.ScrollBarImageTransparency = .55
         end
         tab.Nav.Activated:Connect(function() window:SelectTab(tab) end)
         table.insert(window.Tabs, tab)
@@ -345,20 +397,25 @@ function Library:CreateWindow(options)
             gradient(card, Color3.fromRGB(47,41,38), Color3.fromRGB(27,26,29), 105)
             padding(card,15,16,15,16); create('UIListLayout', {Padding = UDim.new(0,10), SortOrder = Enum.SortOrder.LayoutOrder}, card)
             local title = label(card, specification.Name or 'Section', 18, palette.parchment, Enum.Font.Garamond); title.Size = UDim2.new(1,0,0,24)
+            local accent = create('Frame',{Position=UDim2.fromOffset(-16,-15),Size=UDim2.fromOffset(3,24),BackgroundColor3=palette.gold,BackgroundTransparency=.3,BorderSizePixel=0},title)
+            corner(accent,2)
             if specification.Description then local desc = label(card, specification.Description, 12, palette.muted); desc.TextWrapped = true; desc.AutomaticSize = Enum.AutomaticSize.Y; desc.Size = UDim2.new(1,0,0,0) end
             local section = {}
             local function row(name, description, height)
                 local frame = create('Frame', {Size = UDim2.new(1,0,0,height or 48), BackgroundTransparency = 1}, card)
-                local titleLabel = label(frame, name or '', 13, palette.text, Enum.Font.GothamMedium); titleLabel.Position = UDim2.fromOffset(0,1); titleLabel.Size = UDim2.new(1,-95,0,19); titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
-                if description then local d = label(frame, description, 11, palette.muted); d.Position = UDim2.fromOffset(0,22); d.Size = UDim2.new(1,-95,0,19); d.TextTruncate = Enum.TextTruncate.AtEnd end
+                local titleLabel = label(frame, name or '', 13, palette.text, Enum.Font.GothamMedium); titleLabel.Position = UDim2.fromOffset(0,1); titleLabel.Size = UDim2.new(1,-125,0,19); titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+                if description then local d = label(frame, description, 11, palette.muted); d.Position = UDim2.fromOffset(0,22); d.Size = UDim2.new(1,-125,0,19); d.TextTruncate = Enum.TextTruncate.AtEnd end
                 return frame
             end
             function section:Toggle(spec2)
                 local value = spec2.Default == true; local frame = row(spec2.Name,spec2.Description,48)
                 local control = button(frame,''); control.AnchorPoint = Vector2.new(1,.5); control.Position = UDim2.new(1,0,.5,0); control.Size = UDim2.fromOffset(40,22); corner(control,11); stroke(control,palette.line,.1)
                 local knob = create('Frame',{Size = UDim2.fromOffset(14,14), Position = UDim2.fromOffset(4,4), BackgroundColor3 = palette.parchment, BorderSizePixel = 0},control); corner(knob,7)
-                local function render() animate(control,{BackgroundColor3 = value and palette.gold or palette.elevated}); animate(knob,{Position = UDim2.fromOffset(value and 22 or 4,4)}) end
-                local api = {}; function api:Set(v, silent) value = v == true; render(); if not silent then fire(spec2.Callback,value) end end
+                local function render()
+                    animate(control,{BackgroundColor3 = value and palette.gold or palette.elevated})
+                    animate(knob,{Position = UDim2.fromOffset(value and 22 or 4,4)})
+                end
+                local api = {}; function api:Set(v, silent) value = v == true; render(); if not silent then fire(spec2.Callback,value) end end; function api:Get() return value end
                 control.Activated:Connect(function() api:Set(not value) end); render(); return api
             end
             function section:Button(spec2)
@@ -375,7 +432,12 @@ function Library:CreateWindow(options)
                 local amount = label(frame,'',12,palette.gold,Enum.Font.GothamBold); amount.Position = UDim2.new(1,-80,0,1); amount.Size = UDim2.fromOffset(80,20); amount.TextXAlignment = Enum.TextXAlignment.Right
                 local track = button(frame,''); track.Position = UDim2.new(0,0,1,-19); track.Size = UDim2.new(1,0,0,16); track.BackgroundColor3 = palette.elevated; track.BackgroundTransparency = 0; corner(track,8)
                 local fill = create('Frame',{Size = UDim2.fromScale(0,1), BackgroundColor3 = palette.gold, BorderSizePixel = 0},track); corner(fill,8)
-                local api = {}; function api:Set(v,silent) value = math.clamp(min + math.floor(((tonumber(v) or min)-min)/step+.5)*step,min,max); amount.Text = tostring(value); animate(fill,{Size = UDim2.fromScale((value-min)/(max-min),1)}); if not silent then fire(spec2.Callback,value) end end
+                local api = {}; function api:Set(v,silent)
+                    local nextValue = math.clamp(min + math.floor(((tonumber(v) or min)-min)/step+.5)*step,min,max)
+                    local changed = nextValue ~= value; value = nextValue; amount.Text = tostring(value)
+                    animate(fill,{Size = UDim2.fromScale((value-min)/(max-min),1)})
+                    if changed and not silent then fire(spec2.Callback,value) end
+                end; function api:Get() return value end
                 local activeInput
                 local function update(input) api:Set(min + math.clamp((input.Position.X-track.AbsolutePosition.X)/math.max(track.AbsoluteSize.X,1),0,1)*(max-min)) end
                 track.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then activeInput=input; update(input) end end)
@@ -386,16 +448,93 @@ function Library:CreateWindow(options)
             function section:Input(spec2)
                 local frame = row(spec2.Name,spec2.Description,52)
                 local box = create('TextBox',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,0,.5,0),Size=UDim2.fromOffset(90,31),BackgroundColor3=palette.elevated,BorderSizePixel=0,Text=tostring(spec2.Default or ''),PlaceholderText=spec2.Placeholder or 'Enter',PlaceholderColor3=palette.muted,TextColor3=palette.parchment,Font=Enum.Font.Gotham,TextSize=12,ClearTextOnFocus=false},frame); corner(box,5); stroke(box,palette.line)
-                box.FocusLost:Connect(function() fire(spec2.Callback,box.Text) end)
-                local api={}; function api:Set(v,silent) box.Text=tostring(v); if not silent then fire(spec2.Callback,box.Text) end end; return api
+                box.Focused:Connect(function() animate(box,{BackgroundColor3=Color3.fromRGB(60,49,41)}) end)
+                box.FocusLost:Connect(function() animate(box,{BackgroundColor3=palette.elevated}); fire(spec2.Callback,box.Text) end)
+                local api={}; function api:Set(v,silent) box.Text=tostring(v); if not silent then fire(spec2.Callback,box.Text) end end; function api:Get() return box.Text end; return api
             end
             function section:Dropdown(spec2)
-                local values = spec2.Values or {}; local value = spec2.Default or values[1] or 'None'; local index = table.find(values,value) or 1
-                local frame = row(spec2.Name,spec2.Description,52)
-                local control = button(frame,tostring(value) .. '  v'); control.AnchorPoint=Vector2.new(1,.5); control.Position=UDim2.new(1,0,.5,0); control.Size=UDim2.fromOffset(110,31); control.BackgroundColor3=palette.elevated; control.BackgroundTransparency=0; control.TextColor3=palette.parchment; control.TextSize=11; control.TextTruncate=Enum.TextTruncate.AtEnd; corner(control,5); stroke(control,palette.line)
-                -- Compact cycling selector for the prototype; a full menu is planned for integration.
-                local api={}; function api:Set(v,silent) local i=table.find(values,v); if not i then return end; index=i; value=v; control.Text=tostring(value)..'  v'; if not silent then fire(spec2.Callback,value) end end
-                control.Activated:Connect(function() if #values > 0 then api:Set(values[index % #values + 1]) end end); return api
+                local values = table.clone(spec2.Values or {})
+                local value = spec2.Default or values[1] or 'None'
+                local multi = spec2.Multi == true
+                local selected = {}
+                if multi then
+                    for _, v in ipairs(type(spec2.Default) == 'table' and spec2.Default or {}) do if table.find(values,v) then selected[v]=true end end
+                elseif not table.find(values,value) then value = values[1] or 'None' end
+                local expanded = false
+                local frame = row(spec2.Name,spec2.Description,52); frame.ClipsDescendants = true
+                local control = button(frame,''); control.AnchorPoint=Vector2.new(1,0); control.Position=UDim2.new(1,0,0,10); control.Size=UDim2.fromOffset(116,31); control.BackgroundColor3=palette.elevated; control.BackgroundTransparency=0; corner(control,5); stroke(control,palette.line)
+                local text = label(control,'',11,palette.parchment); text.Position=UDim2.fromOffset(9,0); text.Size=UDim2.new(1,-32,1,0); text.TextTruncate=Enum.TextTruncate.AtEnd
+                local arrow = icon(control,'chevron-down','v'); arrow.AnchorPoint=Vector2.new(1,.5); arrow.Position=UDim2.new(1,-8,.5,0); arrow.Size=UDim2.fromOffset(14,14)
+                local list = create('ScrollingFrame',{Position=UDim2.fromOffset(0,52),Size=UDim2.new(1,0,0,0),BackgroundColor3=palette.elevated,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=palette.gold,AutomaticCanvasSize=Enum.AutomaticSize.Y,CanvasSize=UDim2.new(),Visible=false},frame)
+                corner(list,5); create('UIListLayout',{Padding=UDim.new(0,2),SortOrder=Enum.SortOrder.LayoutOrder},list); padding(list,4,4,4,4)
+                local api, items = {}, {}
+                local function result()
+                    if not multi then return value end
+                    local out={}; for _, v in ipairs(values) do if selected[v] then table.insert(out,v) end end; return out
+                end
+                local function refresh()
+                    if multi then local count=0; for _ in pairs(selected) do count+=1 end; text.Text=count==0 and 'Select' or tostring(count)..' selected'
+                    else text.Text=tostring(value) end
+                    for v, item in pairs(items) do
+                        local active = multi and selected[v] == true or (not multi and v == value)
+                        item.TextColor3=active and palette.gold or palette.text
+                        item.BackgroundTransparency=active and .2 or 1
+                    end
+                end
+                local function setExpanded(open)
+                    expanded = open; list.Visible = open
+                    local h = open and math.min(#values*34+8, 150) or 0
+                    list.Size=UDim2.new(1,0,0,h)
+                    animate(frame,{Size=UDim2.new(1,0,0,52+h)})
+                    animate(arrow,{Rotation=open and 180 or 0})
+                end
+                local function rebuild()
+                    for _, child in ipairs(list:GetChildren()) do if child:IsA('TextButton') then child:Destroy() end end
+                    table.clear(items)
+                    for index, v in ipairs(values) do
+                        local option = button(list,tostring(v)); option.Size=UDim2.new(1,0,0,32); option.LayoutOrder=index; option.TextXAlignment=Enum.TextXAlignment.Left; option.TextSize=12; option.BackgroundColor3=palette.panel; corner(option,4); padding(option,0,8,0,10); items[v]=option
+                        option.Activated:Connect(function()
+                            if multi then selected[v]=not selected[v] or nil else value=v; setExpanded(false) end
+                            refresh(); fire(spec2.Callback,result())
+                        end)
+                    end
+                    refresh(); if expanded then setExpanded(true) end
+                end
+                function api:Set(v,silent)
+                    if multi then
+                        if type(v) ~= 'table' then return end
+                        table.clear(selected); for _, choice in ipairs(v) do if table.find(values,choice) then selected[choice]=true end end
+                    else if not table.find(values,v) then return end; value=v end
+                    refresh(); if not silent then fire(spec2.Callback,result()) end
+                end
+                function api:Get() return result() end
+                function api:SetValues(nextValues)
+                    values=table.clone(nextValues or {})
+                    for choice in pairs(selected) do if not table.find(values,choice) then selected[choice]=nil end end
+                    if not table.find(values,value) then value=values[1] or 'None' end
+                    rebuild()
+                end
+                control.Activated:Connect(function() setExpanded(not expanded) end); rebuild(); return api
+            end
+            function section:Paragraph(spec2)
+                local frame = create('Frame',{Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundColor3=palette.elevated,BorderSizePixel=0},card); corner(frame,5); padding(frame,10,12,10,12)
+                create('UIListLayout',{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder},frame)
+                local title = label(frame,spec2.Title or '',15,palette.parchment,Enum.Font.Garamond); title.Size=UDim2.new(1,0,0,20)
+                local body = label(frame,spec2.Body or '',12,palette.text); body.TextWrapped=true; body.TextYAlignment=Enum.TextYAlignment.Top; body.AutomaticSize=Enum.AutomaticSize.Y; body.Size=UDim2.new(1,0,0,0)
+                local api={}; function api:Set(text) body.Text=tostring(text) end; return api
+            end
+            function section:Progress(spec2)
+                local frame = row(spec2.Name,spec2.Description,67)
+                local amount=label(frame,'',11,palette.gold,Enum.Font.GothamBold); amount.Position=UDim2.new(1,-90,0,1); amount.Size=UDim2.fromOffset(90,20); amount.TextXAlignment=Enum.TextXAlignment.Right
+                local track=create('Frame',{Position=UDim2.new(0,0,1,-14),Size=UDim2.new(1,0,0,6),BackgroundColor3=palette.elevated,BorderSizePixel=0},frame);corner(track,4)
+                local fill=create('Frame',{Size=UDim2.fromScale(0,1),BackgroundColor3=palette.gold,BorderSizePixel=0},track);corner(fill,4)
+                local api={}; function api:Set(v) local n=math.clamp(tonumber(v) or 0,0,1); amount.Text=tostring(math.floor(n*100+.5))..'%'; animate(fill,{Size=UDim2.fromScale(n,1)}) end
+                api:Set(spec2.Default or 0); return api
+            end
+            function section:Info(spec2)
+                local frame=row(spec2.Name,spec2.Description,44)
+                local value=label(frame,tostring(spec2.Value or ''),12,palette.gold,Enum.Font.GothamMedium); value.AnchorPoint=Vector2.new(1,.5); value.Position=UDim2.new(1,0,.5,0); value.Size=UDim2.fromOffset(120,25); value.TextXAlignment=Enum.TextXAlignment.Right; value.TextTruncate=Enum.TextTruncate.AtEnd
+                local api={}; function api:Set(v) value.Text=tostring(v) end; return api
             end
             return section
         end
@@ -407,14 +546,22 @@ function Library:CreateWindow(options)
 end
 local window = Library:CreateWindow({Title = 'FABLE', Subtitle = 'A PRIVATE CHRONICLE'})
 local overview = window:Tab({Name = 'The Chronicle', Icon = 'book-open', Eyebrow = 'FABLE  /  THE FIRST PAGE', Description = 'A quieter place to prepare for the stories ahead.'})
-local welcome = overview:Section({Name = 'Welcome, traveler', Description = 'An early look at Fable’s own interface. These controls are a visual demonstration; they do not interact with the game.'})
+local welcome = overview:Section({Name = 'Welcome, traveler', Description = 'A living sketch of Fable’s interface. Everything here is a demonstration; no game automation is running.'})
+welcome:Paragraph({Title = 'Your story, your pace', Body = 'Browse the chapters on the left. On a smaller screen they become icons; tap the book to reopen the window if you put it away.'})
 welcome:Toggle({Name = 'Begin the journey', Description = 'A sample switch, written in gold.', Default = true, Callback = function(v) print('[Fable UI demo] Toggle:', v) end})
 welcome:Slider({Name = 'Flight speed', Description = 'Adjust a setting with the gilded slider.', Min = 100, Max = 300, Default = 200, Step = 10, Callback = function(v) print('[Fable UI demo] Slider:', v) end})
-welcome:Button({Name = 'The next chapter', Description = 'A simple action, ready when you are.', Action = 'CONTINUE', Callback = function() print('[Fable UI demo] Button pressed') end})
+local progress = welcome:Progress({Name = 'Chapter progress', Description = 'A sample progress indicator.', Default = .35})
+welcome:Button({Name = 'Turn the page', Description = 'Try an animated notification.', Action = 'CONTINUE', Callback = function()
+    progress:Set(.75)
+    window:Notify({Title = 'A new chapter', Content = 'Your story is ready to continue.', Icon = 'book-open'})
+end})
 local preparation = window:Tab({Name = 'Preparation', Icon = 'shield', Eyebrow = 'FABLE  /  PREPARATION', Description = 'Set your intentions before you venture out.'})
-local settings = preparation:Section({Name = 'The armory', Description = 'Sample controls for a future Fable integration.'})
-settings:Dropdown({Name = 'Preferred weapon', Description = 'Tap to cycle through this prototype selector.', Values = {'Blades', 'Spears', 'Any'}, Default = 'Blades', Callback = function(v) print('[Fable UI demo] Choice:', v) end})
+local settings = preparation:Section({Name = 'The armory', Description = 'Select options directly; the menu also supports multiple selections.'})
+settings:Dropdown({Name = 'Preferred weapon', Description = 'Choose a single option.', Values = {'Blades', 'Spears', 'Any'}, Default = 'Blades', Callback = function(v) print('[Fable UI demo] Choice:', v) end})
+settings:Dropdown({Name = 'Supplies to pack', Description = 'Choose as many as you need.', Multi = true, Values = {'Blades', 'Gas', 'Bandages', 'Flare', 'Rations'}, Default = {'Gas'}, Callback = function(v) print('[Fable UI demo] Supplies:', table.concat(v, ', ')) end})
 settings:Input({Name = 'Gold threshold', Description = 'A sample text entry field.', Placeholder = '0', Callback = function(v) print('[Fable UI demo] Input:', v) end})
 settings:Toggle({Name = 'Keep a reserve', Description = 'An example safety preference.', Callback = function(v) print('[Fable UI demo] Reserve:', v) end})
 local lore = window:Tab({Name = 'Archives', Icon = 'library', Eyebrow = 'FABLE  /  ARCHIVES', Description = 'Records, notes and the paths already traveled.'})
-lore:Section({Name = 'An unfinished tale', Description = 'This is a standalone visual prototype. Fable’s existing library, saved settings and hosted release remain untouched.'})
+local records = lore:Section({Name = 'An unfinished tale', Description = 'This is a standalone visual prototype. Fable’s existing library, saved settings and hosted release remain untouched.'})
+records:Info({Name = 'Edition', Description = 'A sample information row.', Value = 'Prototype'})
+records:Paragraph({Title = 'A note in the margins', Body = 'This is a place for helpful explanations, safety notes or a little lore. Nothing in this showcase changes your account.'})
