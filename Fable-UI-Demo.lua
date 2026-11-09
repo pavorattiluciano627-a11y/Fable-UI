@@ -271,6 +271,25 @@ function Library:CreateWindow(options)
     create('UISizeConstraint', {MaxSize = Vector2.new(880, 620), MinSize = Vector2.new(320, 280)}, root)
     corner(root, 9); stroke(root, palette.gold, .55)
     gradient(root, Color3.fromRGB(35,30,29), Color3.fromRGB(14,15,19), 105)
+    local backdrop = create('ImageLabel',{Name='Artwork',Size=UDim2.fromScale(1,1),BackgroundTransparency=1,ImageTransparency=.26,ScaleType=Enum.ScaleType.Crop},root)
+    local shade=create('Frame',{Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.fromRGB(12,12,15),BackgroundTransparency=.47,BorderSizePixel=0},root)
+    local function applyBackdrop(asset)
+        if type(asset)=='string' and asset~='' and gui.Parent then backdrop.Image=asset end
+    end
+    if type(options.BackgroundImage)=='string' and options.BackgroundImage~='' then
+        applyBackdrop(options.BackgroundImage)
+    elseif type(writefile)=='function' and (type(getcustomasset)=='function' or type(getsynasset)=='function') then
+        task.spawn(function()
+            local ok,asset=pcall(function()
+                local path='fable-ui-background-v1.jpg'
+                local bytes=game:HttpGet('https://raw.githubusercontent.com/pavorattiluciano627-a11y/Fable-UI/main/fable-background.jpg?art=1')
+                assert(type(bytes)=='string' and #bytes>10000 and #bytes<1000000 and bytes:sub(1,3)=='\255\216\255','Invalid background')
+                writefile(path,bytes)
+                return (getcustomasset or getsynasset)(path)
+            end)
+            if ok then applyBackdrop(asset) end
+        end)
+    end
     local scale = create('UIScale', {Scale = .965}, root)
     TweenService:Create(scale, TweenInfo.new(.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Scale = 1}):Play()
     local top = create('Frame', {Size = UDim2.new(1,0,0,58), BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0}, root)
@@ -328,7 +347,7 @@ function Library:CreateWindow(options)
     end)
     gui.Destroying:Connect(function() dragConnection:Disconnect(); keyConnection:Disconnect() end)
     local nav = create('ScrollingFrame', {Position = UDim2.fromOffset(0,58), Size = UDim2.new(0,172,1,-58),
-        BackgroundColor3 = palette.sidebar, BorderSizePixel = 0, ScrollBarThickness = 2, ScrollBarImageColor3 = palette.line,
+        BackgroundColor3 = palette.sidebar, BackgroundTransparency = .18, BorderSizePixel = 0, ScrollBarThickness = 2, ScrollBarImageColor3 = palette.line,
         AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, root)
     padding(nav, 15, 9, 14, 9)
     create('UIListLayout', {Padding = UDim.new(0,5), SortOrder = Enum.SortOrder.LayoutOrder}, nav)
@@ -358,6 +377,20 @@ function Library:CreateWindow(options)
         return {Dismiss=dismiss}
     end
     function window:SetVisible(visible) root.Visible = visible == true; reopen.Visible = not root.Visible end
+    function window:Confirm(spec)
+        spec=spec or {}
+        local overlay=create('Frame',{Name='Dialog',Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=.35,BorderSizePixel=0,Active=true,ZIndex=30},gui)
+        local panel=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.new(.88,0,0,165),BackgroundColor3=palette.panel,BorderSizePixel=0,ZIndex=31},overlay)
+        create('UISizeConstraint',{MaxSize=Vector2.new(380,165)},panel);corner(panel,8);stroke(panel,palette.gold,.2)
+        local title=label(panel,spec.Title or 'Are you sure?',21,palette.parchment,Enum.Font.Garamond);title.Position=UDim2.fromOffset(18,12);title.Size=UDim2.new(1,-36,0,30);title.ZIndex=32
+        local body=label(panel,spec.Content or '',12,palette.text);body.Position=UDim2.fromOffset(18,48);body.Size=UDim2.new(1,-36,0,55);body.TextWrapped=true;body.TextYAlignment=Enum.TextYAlignment.Top;body.ZIndex=32
+        local cancel=button(panel,spec.Cancel or 'CANCEL');cancel.Position=UDim2.new(1,-204,1,-49);cancel.Size=UDim2.fromOffset(88,34);cancel.BackgroundColor3=palette.elevated;cancel.BackgroundTransparency=0;cancel.TextSize=10;cancel.ZIndex=32;corner(cancel,5);stroke(cancel,palette.line)
+        local accept=button(panel,spec.Confirm or 'CONFIRM');accept.Position=UDim2.new(1,-108,1,-49);accept.Size=UDim2.fromOffset(90,34);accept.BackgroundColor3=Color3.fromRGB(132,91,48);accept.BackgroundTransparency=0;accept.TextColor3=palette.parchment;accept.TextSize=10;accept.ZIndex=32;corner(accept,5);stroke(accept,palette.gold,.2)
+        local done=false
+        local function finish(confirmed) if done then return end;done=true;overlay:Destroy();fire(spec.Callback,confirmed) end
+        cancel.Activated:Connect(function() finish(false) end);accept.Activated:Connect(function() finish(true) end)
+        return {Dismiss=function() finish(false) end}
+    end
     local function responsive()
         local compact = root.AbsoluteSize.X < 600
         if compact == window.Compact then return end
@@ -404,7 +437,7 @@ function Library:CreateWindow(options)
         function tab:Section(specification)
             specification = specification or {}
             local card = create('Frame', {Size = UDim2.new(1,0,0,0), AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0}, self.Page); corner(card,7); stroke(card,palette.line,.3)
+                BackgroundColor3 = Color3.new(1,1,1), BackgroundTransparency = .18, BorderSizePixel = 0}, self.Page); corner(card,7); stroke(card,palette.line,.3)
             gradient(card, Color3.fromRGB(47,41,38), Color3.fromRGB(27,26,29), 105)
             padding(card,15,16,15,16); create('UIListLayout', {Padding = UDim.new(0,10), SortOrder = Enum.SortOrder.LayoutOrder}, card)
             local title = label(card, specification.Name or 'Section', 18, palette.parchment, Enum.Font.Garamond); title.Size = UDim2.new(1,0,0,24)
@@ -569,6 +602,62 @@ function Library:CreateWindow(options)
                 end
                 control.Activated:Connect(function() setExpanded(not expanded) end); rebuild(); return api
             end
+            function section:Segmented(spec2)
+                local values=table.clone(spec2.Values or {}); assert(#values>0,'Segmented control needs values')
+                local value=table.find(values,spec2.Default) and spec2.Default or values[1]
+                local frame=row(spec2.Name,spec2.Description,92)
+                local bar=create('Frame',{Position=UDim2.fromOffset(0,51),Size=UDim2.new(1,0,0,34),BackgroundColor3=Color3.fromRGB(21,20,21),BorderSizePixel=0},frame);corner(bar,6);stroke(bar,palette.line,.2)
+                create('UIListLayout',{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,3),SortOrder=Enum.SortOrder.LayoutOrder},bar);padding(bar,3,3,3,3)
+                local controls={}
+                local function render() for v,b in pairs(controls) do local active=v==value;animate(b,{BackgroundTransparency=active and 0 or 1,TextColor3=active and palette.parchment or palette.muted}) end end
+                local api={};function api:Set(v,silent) if not table.find(values,v) then return end;value=v;render();if not silent then fire(spec2.Callback,value) end end;function api:Get() return value end
+                for _,v in ipairs(values) do local b=button(bar,tostring(v));b.Size=UDim2.new(1/#values,-3,1,0);b.TextSize=11;b.TextTruncate=Enum.TextTruncate.AtEnd;b.BackgroundColor3=Color3.fromRGB(105,74,43);corner(b,4);controls[v]=b;b.Activated:Connect(function() api:Set(v) end) end
+                render();return api
+            end
+            function section:ColorPicker(spec2)
+                -- Palette-based selector: easy to use on touch; this is not a full HSV picker.
+                local colors=spec2.Colors or {Color3.fromRGB(210,170,111),Color3.fromRGB(145,68,62),Color3.fromRGB(94,124,116),Color3.fromRGB(126,112,153)}
+                assert(#colors>0,'Color picker needs at least one color')
+                local value=spec2.Default or colors[1]
+                local frame=row(spec2.Name,spec2.Description,90)
+                local swatches=create('Frame',{Position=UDim2.fromOffset(0,48),Size=UDim2.new(1,0,0,38),BackgroundTransparency=1},frame)
+                create('UIListLayout',{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},swatches)
+                local controls={}
+                local function render() for color,border in pairs(controls) do animate(border,{Transparency=color==value and 0 or .7,Thickness=color==value and 2 or 1}) end end
+                local api={};function api:Set(v,silent) if typeof(v)~='Color3' then return end;value=v;render();if not silent then fire(spec2.Callback,value) end end;function api:Get() return value end
+                for _,color in ipairs(colors) do
+                    local hit=button(swatches,'');hit.Size=UDim2.fromOffset(38,38)
+                    local swatch=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(26,26),BackgroundColor3=color,BorderSizePixel=0},hit);corner(swatch,13)
+                    local outline=create('UIStroke',{Color=palette.parchment,Transparency=.7,Thickness=1},swatch);controls[color]=outline
+                    hit.Activated:Connect(function() api:Set(color) end)
+                end
+                render();return api
+            end
+            function section:Keybind(spec2)
+                local key=typeof(spec2.Default)=='EnumItem' and spec2.Default or nil
+                local capturing=false
+                local frame=row(spec2.Name,spec2.Description,52)
+                local control=button(frame,'');control.AnchorPoint=Vector2.new(1,.5);control.Position=UDim2.new(1,0,.5,0);control.Size=UDim2.fromOffset(112,38);control.BackgroundColor3=palette.elevated;control.BackgroundTransparency=0;control.TextSize=11;corner(control,5);stroke(control,palette.gold,.55)
+                local function render() control.Text=capturing and 'PRESS A KEY' or (key and key.Name or 'UNBOUND') end
+                local api={};function api:Set(v,silent) if v~=nil and (typeof(v)~='EnumItem' or v.EnumType~=Enum.KeyCode) then return end;key=v;capturing=false;render();if not silent then fire(spec2.ChangedCallback,key) end end;function api:Get() return key end
+                control.Activated:Connect(function() capturing=not capturing;render() end)
+                local connection=InputService.InputBegan:Connect(function(input,processed)
+                    if input.UserInputType~=Enum.UserInputType.Keyboard then return end
+                    if capturing then
+                        if input.KeyCode==Enum.KeyCode.Escape then capturing=false;render();return end
+                        if input.KeyCode==Enum.KeyCode.Backspace then api:Set(nil);return end
+                        if input.KeyCode~=Enum.KeyCode.Unknown then api:Set(input.KeyCode) end
+                    elseif not processed and not InputService:GetFocusedTextBox() and key and input.KeyCode==key then fire(spec2.Callback,key) end
+                end)
+                frame.Destroying:Connect(function() connection:Disconnect() end);render();return api
+            end
+            function section:Divider(spec2)
+                local frame=create('Frame',{Size=UDim2.new(1,0,0,24),BackgroundTransparency=1},card)
+                local text=label(frame,(spec2 and spec2.Name) or '',10,palette.gold,Enum.Font.GothamBold);text.Size=UDim2.new(1,0,0,20)
+                local line=create('Frame',{Position=UDim2.new(0,0,1,-1),Size=UDim2.new(1,0,0,1),BackgroundColor3=palette.gold,BackgroundTransparency=.6,BorderSizePixel=0},frame)
+                gradient(line,Color3.fromRGB(235,197,136),Color3.fromRGB(35,30,25),0)
+                return frame
+            end
             function section:Paragraph(spec2)
                 local frame = create('Frame',{Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundColor3=palette.elevated,BorderSizePixel=0},card); corner(frame,5); padding(frame,10,12,10,12)
                 create('UIListLayout',{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder},frame)
@@ -597,7 +686,7 @@ function Library:CreateWindow(options)
     responsive()
     return window
 end
-local window = Library:CreateWindow({Title = 'FABLE', Subtitle = 'GLOW EDITION  /  PROTOTYPE'})
+local window = Library:CreateWindow({Title = 'FABLE', Subtitle = 'THE SCRIBES EDITION'})
 local overview = window:Tab({Name = 'The Chronicle', Icon = 'book-open', Eyebrow = 'FABLE  /  THE FIRST PAGE', Description = 'A quieter place to prepare for the stories ahead.'})
 local welcome = overview:Section({Name = 'Welcome, traveler', Description = 'A living sketch of Fable’s interface. Everything here is a demonstration; no game automation is running.'})
 welcome:Paragraph({Title = 'Your story, your pace', Body = 'Browse the chapters on the left. On a smaller screen they become icons; tap the book to reopen the window if you put it away.'})
@@ -618,3 +707,14 @@ local lore = window:Tab({Name = 'Archives', Icon = 'library', Eyebrow = 'FABLE  
 local records = lore:Section({Name = 'An unfinished tale', Description = 'This is a standalone visual prototype. Fable’s existing library, saved settings and hosted release remain untouched.'})
 records:Info({Name = 'Edition', Description = 'A sample information row.', Value = 'Prototype'})
 records:Paragraph({Title = 'A note in the margins', Body = 'This is a place for helpful explanations, safety notes or a little lore. Nothing in this showcase changes your account.'})
+
+local elements=window:Tab({Name='The Scriptorium',Icon='sparkles',Eyebrow='FABLE  /  ELEMENTS',Description='A showcase of the tools available to future Fable pages.'})
+local collection=elements:Section({Name='The collection',Description='These are demonstration controls only; their callbacks print or show a notification.'})
+collection:Divider({Name='SET THE SCENE'})
+collection:Segmented({Name='Travel mode',Description='A compact choice between modes.',Values={'Explore','Guard','Rest'},Default='Explore',Callback=function(v) print('[Fable UI demo] Mode:',v) end})
+collection:ColorPicker({Name='Wax seal',Description='Choose a color from the curated palette.',Callback=function(v) print('[Fable UI demo] Color:',v) end})
+collection:Divider({Name='QUICK ACTIONS'})
+collection:Keybind({Name='Chapter shortcut',Description='Tap, then press a key. Escape cancels; Backspace clears.',Callback=function() window:Notify({Title='Shortcut',Content='Your sample keybind was pressed.'}) end})
+collection:Button({Name='Confirmation',Description='Preview a two-choice confirmation dialog.',Action='PREVIEW',Callback=function()
+    window:Confirm({Title='Turn the page?',Content='This only previews the dialog. It will not change anything in the game.',Confirm='CONTINUE',Callback=function(yes) window:Notify({Title=yes and 'Page turned' or 'Kept in place',Content='Your choice was recorded for this demonstration.'}) end})
+end})
