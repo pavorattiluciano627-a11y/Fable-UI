@@ -369,6 +369,12 @@ function Library:CreateWindow(options)
     local divider = create('Frame', {Position = UDim2.fromOffset(171,58), Size = UDim2.new(0,1,1,-58), BackgroundColor3 = palette.line, BorderSizePixel = 0}, root)
     local content = create('Frame', {Position = UDim2.fromOffset(172,58), Size = UDim2.new(1,-172,1,-58), BackgroundTransparency = 1, ClipsDescendants = true}, root)
     local window = {Gui = gui, Tabs = {}, Active = nil, Compact = false}
+    local sidebarHandle=button(root,'')
+    sidebarHandle.Name='SidebarHandle';sidebarHandle.AnchorPoint=Vector2.new(0,.5);sidebarHandle.Position=UDim2.new(0,0,.5,0);sidebarHandle.Size=UDim2.fromOffset(27,52);sidebarHandle.BackgroundColor3=Color3.fromRGB(54,41,31);sidebarHandle.BackgroundTransparency=.16;sidebarHandle.ZIndex=8;corner(sidebarHandle,7);stroke(sidebarHandle,palette.gold,.25)
+    local handleIcon=icon(sidebarHandle,'chevron-left','<');handleIcon.AnchorPoint=Vector2.new(.5,.5);handleIcon.Position=UDim2.fromScale(.5,.5);handleIcon.Size=UDim2.fromOffset(17,17);handleIcon.ZIndex=9
+    local handleFallback=handleIcon:FindFirstChildOfClass('TextLabel');if handleFallback then handleFallback.ZIndex=10 end
+    sidebarHandle.MouseEnter:Connect(function() animate(sidebarHandle,{BackgroundTransparency=0}) end)
+    sidebarHandle.MouseLeave:Connect(function() animate(sidebarHandle,{BackgroundTransparency=.16}) end)
     local toastHolder = create('Frame', {Name='Notifications', AnchorPoint=Vector2.new(1,1), Position=UDim2.new(1,-14,1,-14), Size=UDim2.new(1,-28,1,-28), BackgroundTransparency=1, ZIndex=10}, gui)
     create('UISizeConstraint', {MaxSize=Vector2.new(320,400)}, toastHolder)
     create('UIListLayout', {FillDirection=Enum.FillDirection.Vertical, HorizontalAlignment=Enum.HorizontalAlignment.Right, VerticalAlignment=Enum.VerticalAlignment.Bottom, Padding=UDim.new(0,8), SortOrder=Enum.SortOrder.LayoutOrder}, toastHolder)
@@ -406,15 +412,34 @@ function Library:CreateWindow(options)
         return {Dismiss=function() finish(false) end}
     end
     local function responsive()
-        local compact = root.AbsoluteSize.X < 600
-        if compact == window.Compact then return end
-        window.Compact = compact
-        local width = compact and 54 or 172
-        nav.Size = UDim2.new(0,width,1,-58); divider.Position = UDim2.fromOffset(width-1,58)
-        content.Position = UDim2.fromOffset(width,58); content.Size = UDim2.new(1,-width,1,-58)
-        chapter.Text = compact and '' or 'THE CHRONICLE'
-        for _, tab in ipairs(window.Tabs) do tab.Caption.Visible = not compact end
+        local compact
+        if window.SidebarOverride ~= nil then compact = window.SidebarOverride else compact = root.AbsoluteSize.X < 600 end
+        local width=compact and 54 or math.min(172,math.max(110,math.floor(root.AbsoluteSize.X*.36)))
+        if width==window.SidebarWidth and compact==window.Compact then return end
+        local initial=window.SidebarWidth==nil
+        window.Compact=compact;window.SidebarWidth=width
+        local navSize=UDim2.new(0,width,1,-58)
+        local dividerPos=UDim2.fromOffset(width-1,58)
+        local contentPos=UDim2.fromOffset(width,58)
+        local contentSize=UDim2.new(1,-width,1,-58)
+        if initial or options.ReducedMotion then
+            nav.Size=navSize;divider.Position=dividerPos;content.Position=contentPos;content.Size=contentSize
+        else
+            local transition=TweenInfo.new(.24,Enum.EasingStyle.Quart,Enum.EasingDirection.Out)
+            TweenService:Create(nav,transition,{Size=navSize}):Play()
+            TweenService:Create(divider,transition,{Position=dividerPos}):Play()
+            TweenService:Create(content,transition,{Position=contentPos,Size=contentSize}):Play()
+        end
+        handleIcon.Image=Icons[compact and 'chevron-right' or 'chevron-left'] or ''
+        if handleFallback then handleFallback.Text=compact and '>' or '<' end
+        chapter.Text=compact and '' or 'THE CHRONICLE'
+        for _,tab in ipairs(window.Tabs) do tab.Caption.Visible=not compact end
     end
+    function window:SetSidebarCollapsed(collapsed)
+        self.SidebarOverride=collapsed==true
+        responsive()
+    end
+    sidebarHandle.Activated:Connect(function() window:SetSidebarCollapsed(not window.Compact) end)
     root:GetPropertyChangedSignal('AbsoluteSize'):Connect(responsive)
     function window:Tab(spec)
         spec = spec or {}; local tab = {Name = spec.Name or 'Chapter', Icon = spec.Icon or 'book', Sections = {}}
@@ -874,7 +899,7 @@ function Library:CreateWindow(options)
     responsive()
     return window
 end
-local window=Library:CreateWindow({Title='FABLE',Subtitle='ILLUMINATED EDGES / DEMO'})
+local window=Library:CreateWindow({Title='FABLE',Subtitle='SIDEBAR CONTROL / DEMO'})
 local state={farm=false,target='Closest',titanHits=3,bossHits=10,hover=150,reload=false,refill=false}
 local controls={}
 local outcome, plan, recoveryNote
