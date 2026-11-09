@@ -436,7 +436,10 @@ function Library:CreateWindow(options)
         handleIcon.Image=Icons[compact and 'chevron-right' or 'chevron-left'] or ''
         if handleFallback then handleFallback.Text=compact and '>' or '<' end
         chapter.Text=compact and '' or 'THE CHRONICLE'
-        for _,tab in ipairs(window.Tabs) do tab.Caption.Visible=not compact end
+        for _,tab in ipairs(window.Tabs) do
+            tab.Caption.Visible=not compact
+            if tab.UpdateSubNavigation then tab:UpdateSubNavigation() end
+        end
     end
     function window:SetSidebarCollapsed(collapsed)
         self.SidebarOverride=collapsed==true
@@ -446,7 +449,7 @@ function Library:CreateWindow(options)
     root:GetPropertyChangedSignal('AbsoluteSize'):Connect(responsive)
     function window:Tab(spec)
         spec = spec or {}; local tab = {Name = spec.Name or 'Chapter', Icon = spec.Icon or 'book', Sections = {}}
-        tab.Nav = button(nav, ''); tab.Nav.Size = UDim2.new(1,0,0,39)
+        tab.Nav = button(nav, ''); tab.Nav.Size = UDim2.new(1,0,0,39); tab.Nav.LayoutOrder=(#window.Tabs+1)*1000
         tab.Nav.BackgroundColor3 = Color3.fromRGB(70,53,40); tab.Nav.BackgroundTransparency = 1; corner(tab.Nav,5)
         tab.Border=stroke(tab.Nav,Color3.fromRGB(196,153,97),1)
         tab.Image = icon(tab.Nav, tab.Icon, tab.Name:sub(1,1)); tab.Image.Position = UDim2.fromOffset(9,11); tab.Image.Size = UDim2.fromOffset(17,17)
@@ -479,6 +482,14 @@ function Library:CreateWindow(options)
             end
             self.Active = selected
             if previous ~= selected then
+                for _,other in ipairs(self.Tabs) do
+                    if other.SubTabs and #other.SubTabs>0 then
+                        other.Expanded = other==selected
+                        other:UpdateSubNavigation()
+                    end
+                end
+            end
+            if previous ~= selected then
                 if selected.Transition then selected.Transition:Cancel() end
                 if options.ReducedMotion or not previous then
                     selected.Layer.GroupTransparency=0;selected.Layer.Position=UDim2.fromOffset(0,0)
@@ -489,7 +500,15 @@ function Library:CreateWindow(options)
                 end
             end
         end
-        tab.Nav.Activated:Connect(function() window:SelectTab(tab) end)
+        tab.Nav.Activated:Connect(function()
+            if tab.SubTabs and #tab.SubTabs>0 then
+                if window.Active == tab then
+                    tab.Expanded=not tab.Expanded;tab:UpdateSubNavigation()
+                else
+                    tab.Expanded=true;window:SelectTab(tab);tab:UpdateSubNavigation()
+                end
+            else window:SelectTab(tab) end
+        end)
         table.insert(window.Tabs, tab)
         tab.Caption.Visible = not window.Compact
         if not window.Active then window:SelectTab(tab) end
@@ -834,28 +853,43 @@ function Library:CreateWindow(options)
             task.defer(arrange)
             return columns
         end
-        -- Subtabs share the tab's scrolling page and the same section API.
+        -- A parent tab expands its nested pages in the sidebar.
         function tab:SubTab(subSpec)
-            subSpec=subSpec or {}
-            if not self.SubBar then
+            subSpec=type(subSpec)=='string' and {Name=subSpec} or (subSpec or {})
+            if not self.SubTabs then
                 self.SubTabs={}
-                self.SubBar=create('ScrollingFrame',{Name='SubTabs',Size=UDim2.new(1,0,0,43),BackgroundColor3=Color3.fromRGB(24,22,23),BackgroundTransparency=.12,BorderSizePixel=0,ScrollBarThickness=2,ScrollBarImageColor3=palette.gold,ScrollingDirection=Enum.ScrollingDirection.X,AutomaticCanvasSize=Enum.AutomaticSize.X,CanvasSize=UDim2.new()},self.Page)
-                corner(self.SubBar,6);stroke(self.SubBar,palette.line,.35);watchScroll(self.SubBar)
-                create('UIListLayout',{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder},self.SubBar);padding(self.SubBar,4,4,4,4)
+                self.Expanded=window.Active==self
+                self.Chevron=icon(self.Nav,'chevron-right','>')
+                self.Chevron.AnchorPoint=Vector2.new(1,.5);self.Chevron.Position=UDim2.new(1,-7,.5,0);self.Chevron.Size=UDim2.fromOffset(14,14)
             end
             local sub={Name=subSpec.Name or 'Page',Section=self.Section,Columns=self.Columns}
-            sub.Button=button(self.SubBar,sub.Name);sub.Button.Size=UDim2.fromOffset(math.clamp(#sub.Name*8+32,90,180),33);sub.Button.TextSize=12;sub.Button.BackgroundColor3=Color3.fromRGB(102,71,42);corner(sub.Button,5)
+            sub.Button=button(nav,'');sub.Button.Name='SubTab_'..sub.Name;sub.Button.Size=UDim2.new(1,0,0,34);sub.Button.LayoutOrder=self.Nav.LayoutOrder+#self.SubTabs+1;sub.Button.BackgroundColor3=Color3.fromRGB(63,48,36);sub.Button.BackgroundTransparency=1;corner(sub.Button,5)
+            sub.Icon=icon(sub.Button,subSpec.Icon or 'circle',sub.Name:sub(1,1));sub.Icon.Size=UDim2.fromOffset(14,14)
+            sub.Caption=label(sub.Button,sub.Name,12,palette.muted);sub.Caption.TextTruncate=Enum.TextTruncate.AtEnd
+            sub.Indicator=create('Frame',{AnchorPoint=Vector2.new(0,.5),Position=UDim2.new(0,0,.5,0),Size=UDim2.fromOffset(2,16),BackgroundColor3=palette.gold,BackgroundTransparency=1,BorderSizePixel=0},sub.Button);corner(sub.Indicator,1)
             sub.Page=create('CanvasGroup',{Name='SubPage',Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,GroupTransparency=0,Visible=false},self.Page)
             create('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},sub.Page)
             table.insert(self.SubTabs,sub)
+            function self:UpdateSubNavigation()
+                self.Chevron.Visible=not window.Compact
+                animate(self.Chevron,{Rotation=self.Expanded and 90 or 0})
+                for _,item in ipairs(self.SubTabs) do
+                    item.Button.Visible=self.Expanded==true and window.Active==self
+                    item.Icon.Position=UDim2.fromOffset(window.Compact and 9 or 21,10)
+                    item.Caption.Position=UDim2.fromOffset(43,0);item.Caption.Size=UDim2.new(1,-46,1,0);item.Caption.Visible=not window.Compact
+                end
+            end
             function self:SelectSubTab(selected)
                 if not table.find(self.SubTabs,selected) then return end
                 for _,item in ipairs(self.SubTabs) do
                     local active=item==selected;item.Page.Visible=active
                     if not active and item.Transition then item.Transition:Cancel();item.Transition=nil end
-                    animate(item.Button,{BackgroundTransparency=active and 0 or 1,TextColor3=active and palette.parchment or palette.muted})
+                    animate(item.Button,{BackgroundTransparency=active and 0 or 1})
+                    animate(item.Caption,{TextColor3=active and palette.parchment or palette.muted})
+                    animate(item.Icon,{ImageColor3=active and palette.gold or palette.muted})
+                    animate(item.Indicator,{BackgroundTransparency=active and .05 or 1})
                 end
-                if self.ActiveSubTab ~= selected then
+                if self.ActiveSubTab~=selected then
                     if selected.Transition then selected.Transition:Cancel() end
                     if not options.ReducedMotion and self.ActiveSubTab then
                         selected.Page.GroupTransparency=.35
@@ -863,11 +897,12 @@ function Library:CreateWindow(options)
                         selected.Transition:Play()
                     else selected.Page.GroupTransparency=0 end
                 end
-                self.ActiveSubTab=selected
+                self.ActiveSubTab=selected;heading.Text=selected.Name
+                self:UpdateSubNavigation()
             end
-            sub.Button.Activated:Connect(function() self:SelectSubTab(sub) end)
-            if not self.ActiveSubTab then self:SelectSubTab(sub) end
-            function sub:Select() tab:SelectSubTab(self);window:SelectTab(tab) end
+            sub.Button.Activated:Connect(function() self.Expanded=true;window:SelectTab(self);self:SelectSubTab(sub) end)
+            if not self.ActiveSubTab then self:SelectSubTab(sub) else self:UpdateSubNavigation() end
+            function sub:Select() tab.Expanded=true;window:SelectTab(tab);tab:SelectSubTab(self) end
             return sub
         end
         return tab
