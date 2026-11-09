@@ -479,9 +479,9 @@ function Library:CreateWindow(options)
                 local frame = row(spec2.Name, spec2.Description, 54)
                 -- The clickable area is larger than the visible switch for touch use.
                 local hit = button(frame, '')
-                hit.AnchorPoint = Vector2.new(1,.5); hit.Position = UDim2.new(1,0,.5,0); hit.Size = UDim2.fromOffset(94,48)
+                hit.Size = UDim2.fromScale(1,1); frame.BackgroundColor3=palette.gold; corner(frame,5)
                 local state = label(hit,'',9,palette.muted,Enum.Font.GothamBold)
-                state.Position=UDim2.fromOffset(0,0); state.Size=UDim2.fromOffset(33,48); state.TextXAlignment=Enum.TextXAlignment.Right
+                state.AnchorPoint=Vector2.new(1,.5); state.Position=UDim2.new(1,-61,.5,0); state.Size=UDim2.fromOffset(33,48); state.TextXAlignment=Enum.TextXAlignment.Right
                 local track = create('Frame',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-2,.5,0),Size=UDim2.fromOffset(48,25),BackgroundColor3=palette.elevated,BorderSizePixel=0},hit)
                 corner(track,13)
                 local border=create('UIStroke',{Color=palette.line,Transparency=.1,Thickness=1},track)
@@ -498,8 +498,8 @@ function Library:CreateWindow(options)
                     animate(seal,{BackgroundColor3=value and Color3.fromRGB(143,96,46) or Color3.fromRGB(96,86,76)})
                 end
                 local api={}; function api:Set(v,silent) value=v==true; render(); if not silent then fire(spec2.Callback,value) end end; function api:Get() return value end
-                hit.MouseEnter:Connect(function() animate(border,{Transparency=0}) end)
-                hit.MouseLeave:Connect(render)
+                hit.MouseEnter:Connect(function() animate(border,{Transparency=0}); animate(frame,{BackgroundTransparency=.93}) end)
+                hit.MouseLeave:Connect(function() render(); animate(frame,{BackgroundTransparency=1}) end)
                 hit.Activated:Connect(function() api:Set(not value) end)
                 render(); return api
             end
@@ -529,6 +529,7 @@ function Library:CreateWindow(options)
                 local gem=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(8,8),Rotation=45,BackgroundColor3=Color3.fromRGB(255,224,167),BorderSizePixel=0},thumb);corner(gem,2)
                 local low=label(frame,tostring(min),10,palette.muted); low.Position=UDim2.new(0,0,1,-14); low.Size=UDim2.fromOffset(55,14)
                 local high=label(frame,tostring(max),10,palette.muted); high.AnchorPoint=Vector2.new(1,0); high.Position=UDim2.new(1,0,1,-14); high.Size=UDim2.fromOffset(55,14); high.TextXAlignment=Enum.TextXAlignment.Right
+                local activeInput
                 local api={}; function api:Set(v,silent)
                     local number=tonumber(v) or min
                     if number~=number or math.abs(number)==math.huge then number=min end
@@ -536,8 +537,13 @@ function Library:CreateWindow(options)
                     nextValue=tonumber(string.format('%.8f',nextValue)) or nextValue
                     local changed=nextValue~=value; value=nextValue; if not amount:IsFocused() then amount.Text=tostring(value) end
                     local fraction=(value-min)/(max-min)
-                    animate(fill,{Size=UDim2.fromScale(fraction,1)}); animate(thumb,{Position=UDim2.fromScale(fraction,.5)})
-                    for _,layer in ipairs(thumbGlow) do animate(layer,{Position=UDim2.fromScale(fraction,.5)}) end
+                    if activeInput then
+                        fill.Size=UDim2.fromScale(fraction,1);thumb.Position=UDim2.fromScale(fraction,.5)
+                        for _,layer in ipairs(thumbGlow) do layer.Position=UDim2.fromScale(fraction,.5) end
+                    else
+                        animate(fill,{Size=UDim2.fromScale(fraction,1)});animate(thumb,{Position=UDim2.fromScale(fraction,.5)})
+                        for _,layer in ipairs(thumbGlow) do animate(layer,{Position=UDim2.fromScale(fraction,.5)}) end
+                    end
                     if changed and not silent then fire(spec2.Callback,value) end
                 end; function api:Get() return value end
                 amount.FocusLost:Connect(function()
@@ -545,7 +551,6 @@ function Library:CreateWindow(options)
                     if entered and entered==entered and math.abs(entered)<math.huge then api:Set(entered) end
                     amount.Text=tostring(value)
                 end)
-                local activeInput
                 local function update(input) api:Set(min+math.clamp((input.Position.X-rail.AbsolutePosition.X)/math.max(rail.AbsoluteSize.X,1),0,1)*(max-min)) end
                 hit.InputBegan:Connect(function(input)
                     if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then activeInput=input; animate(thumb,{Size=UDim2.fromOffset(23,23)}); update(input) end
@@ -602,6 +607,8 @@ function Library:CreateWindow(options)
                     table.clear(items)
                     for index, v in ipairs(values) do
                         local option = button(list,tostring(v)); option.Size=UDim2.new(1,0,0,38); option.LayoutOrder=index; option.TextXAlignment=Enum.TextXAlignment.Left; option.TextSize=12; option.BackgroundColor3=palette.panel; corner(option,4); padding(option,0,8,0,10); items[v]=option
+                        option.MouseEnter:Connect(function() animate(option,{BackgroundTransparency=.25}) end)
+                        option.MouseLeave:Connect(function() refresh() end)
                         option.Activated:Connect(function()
                             if multi then selected[v]=not selected[v] or nil else value=v; setExpanded(false) end
                             refresh(); fire(spec2.Callback,result())
@@ -824,30 +831,53 @@ function Library:CreateWindow(options)
     responsive()
     return window
 end
-local window=Library:CreateWindow({Title='FABLE',Subtitle='WORKFLOW STUDY / DEMO'})
-local farm=window:Tab({Name='Mission Farm',Icon='swords',Eyebrow='FABLE  /  MISSIONS',Description='Set up combat and recovery in one place. Demo only: no game actions are performed.'})
+local window=Library:CreateWindow({Title='FABLE',Subtitle='INTERACTION STUDY / DEMO'})
+local state={farm=false,target='Closest',titanHits=3,bossHits=10,hover=150,reload=false,refill=false}
+local controls={}
+local outcome, plan, recoveryNote
+local function render()
+    if outcome then outcome:Set(state.farm and 'Preview on' or 'Preview off',state.farm and Color3.fromRGB(141,193,151) or Color3.fromRGB(162,143,122)) end
+    if plan then
+        plan:Set((state.farm and 'Preview enabled' or 'Preview paused')..'. Target: '..state.target..'. Hover: '..state.hover..' studs. Titan / boss attempts: '..state.titanHits..' / '..state.bossHits..'. No game requests are sent.')
+    end
+    if recoveryNote then recoveryNote:Set('Refill: '..(state.refill and 'on' or 'off')..'  |  Reload: '..(state.reload and 'on' or 'off')..'. These choices are only a UI preview.') end
+end
+local function setReload(v,source)
+    state.reload=v
+    if controls.combatReload and source~='combat' then controls.combatReload:Set(v,true) end
+    if controls.supplyReload and source~='supply' then controls.supplyReload:Set(v,true) end
+    render()
+end
+local farm=window:Tab({Name='Mission Farm',Icon='swords',Eyebrow='FABLE  /  MISSIONS',Description='Configure a simulated plan. This demo does not control the game.'})
 local combat=farm:SubTab({Name='Combat'})
 local supplies=farm:SubTab({Name='Supplies'})
 local layout=combat:Columns()
-local mission=layout.Left:Section({Name='Combat',Description='Configure your mission farm.'})
-mission:Toggle({Name='Auto Farm',Description='Attack targets automatically.',Default=false,Callback=function(v) print('[Demo] Auto Farm',v) end})
-mission:Dropdown({Name='Target priority',Description='Select a targeting style.',Values={'Closest','Objective','Random'},Default='Closest',Callback=function(v) print('[Demo] Target',v) end})
-mission:Slider({Name='Multi Hit - Titans',Description='Maximum attempts per swing.',Min=1,Max=20,Step=1,Default=3,Callback=function(v) print('[Demo] Titan attempts',v) end})
-mission:Slider({Name='Multi Hit - Bosses',Description='Maximum attempts per swing.',Min=1,Max=30,Step=1,Default=10,Callback=function(v) print('[Demo] Boss attempts',v) end})
-local movement=layout.Right:Section({Name='Movement',Description='Fine-tune positioning.'})
-movement:Slider({Name='Hover Height',Description='Height above your target.',Min=100,Max=300,Step=1,Default=150,Callback=function(v) print('[Demo] Hover',v) end})
-movement:Toggle({Name='Auto Reload',Description='Replace fully broken blades.',Default=false,Callback=function(v) print('[Demo] Reload',v) end})
-local safety=layout.Right:Section({Name='Before you begin',Description='This page previews layout and controls only.'})
-safety:Paragraph({Title='A safe preview',Body='No controls on this page send game requests. Numeric slider values can be typed or dragged.'})
-safety:Button({Name='Test notification',Description='Preview a small confirmation.',Action='PREVIEW',Callback=function() window:Notify({Title='Ready to depart',Content='This was a UI preview; no game action was sent.',Icon='shield'}) end})
+local mission=layout.Left:Section({Name='Combat',Description='Choose how the preview should behave.'})
+controls.farm=mission:Toggle({Name='Auto Farm',Description='Enable the simulated plan.',Default=false,Callback=function(v) state.farm=v;render() end})
+controls.target=mission:Dropdown({Name='Target priority',Description='Choose a targeting style.',Values={'Closest','Objective','Random'},Default='Closest',Callback=function(v) state.target=v;render() end})
+controls.titans=mission:Slider({Name='Multi Hit - Titans',Description='Attempts per swing in preview.',Min=1,Max=20,Step=1,Default=3,Callback=function(v) state.titanHits=v;render() end})
+controls.bosses=mission:Slider({Name='Multi Hit - Bosses',Description='Attempts per swing in preview.',Min=1,Max=30,Step=1,Default=10,Callback=function(v) state.bossHits=v;render() end})
+local movement=layout.Right:Section({Name='Movement & recovery',Description='Adjust the simulated setup.'})
+controls.hover=movement:Slider({Name='Hover Height',Description='Height above the target.',Min=100,Max=300,Step=1,Default=150,Callback=function(v) state.hover=v;render() end})
+controls.combatReload=movement:Toggle({Name='Auto Reload',Description='Replace fully broken blades.',Default=false,Callback=function(v) setReload(v,'combat') end})
+local preview=layout.Right:Section({Name='Your plan',Description='Updates as you change settings.'})
+outcome=preview:Status({Name='Simulation',Description='Not connected to the game.',Value='Preview off'})
+plan=preview:Paragraph({Title='Current setup',Body=''})
+preview:Button({Name='Reset preview',Description='Return demo settings to defaults.',Action='RESET',Callback=function()
+    state.farm=false;state.target='Closest';state.titanHits=3;state.bossHits=10;state.hover=150;state.refill=false
+    controls.farm:Set(false,true);controls.target:Set('Closest',true);controls.titans:Set(3,true);controls.bosses:Set(10,true);controls.hover:Set(150,true)
+    if controls.refill then controls.refill:Set(false,true) end
+    setReload(false);render()
+    window:Notify({Title='Preview reset',Content='The demo settings were restored. Nothing in the game changed.',Icon='rotate-ccw'})
+end})
 local supplyLayout=supplies:Columns()
-local recovery=supplyLayout.Left:Section({Name='Recovery',Description='Options for keeping supplies ready.'})
-recovery:Toggle({Name='Auto Refill',Description='Refill when supplies run low.',Default=false,Callback=function(v) print('[Demo] Refill',v) end})
-recovery:Toggle({Name='Auto Reload',Description='Replace fully broken blades.',Default=false,Callback=function(v) print('[Demo] Reload',v) end})
-local preferences=supplyLayout.Right:Section({Name='Preferences',Description='Choose how the preview behaves.'})
-preferences:Segmented({Name='Supply mode',Description='A demonstration of modes.',Values={'Manual','Automatic'},Default='Manual',Callback=function(v) print('[Demo] Supply mode',v) end})
-preferences:Checkbox({Name='Show reminders',Description='A sample checkbox.',Default=true})
-local journal=window:Tab({Name='Field Notes',Icon='book-open',Eyebrow='FABLE  /  FIELD NOTES',Description='What this prototype does and does not do.'})
-local notes=journal:Section({Name='About this study',Description='The working Fable UI remains on arvn.'})
-notes:Paragraph({Title='What to review',Body='Compare the spacing, hierarchy, descriptions, columns and mobile layout. This is a visual workflow study, not a functional farm.'})
-notes:Paragraph({Title='Still to build',Body='Config persistence, a complete color picker, configurable binds and other production features remain unfinished.'})
+local recovery=supplyLayout.Left:Section({Name='Recovery',Description='These controls share the demo plan.'})
+controls.refill=recovery:Toggle({Name='Auto Refill',Description='Refill when supplies run low.',Default=false,Callback=function(v) state.refill=v;render() end})
+controls.supplyReload=recovery:Toggle({Name='Auto Reload',Description='Also shown on the Combat page.',Default=false,Callback=function(v) setReload(v,'supply') end})
+local preferences=supplyLayout.Right:Section({Name='Your recovery plan',Description='A live preview of these choices.'})
+recoveryNote=preferences:Paragraph({Title='Current setup',Body=''})
+local journal=window:Tab({Name='Field Notes',Icon='book-open',Eyebrow='FABLE  /  FIELD NOTES',Description='A safe place to test the interface.'})
+local notes=journal:Section({Name='Interaction study',Description='Fable itself remains on arvn.'})
+notes:Paragraph({Title='Try the workflow',Body='Change settings and watch the plan update. Auto Reload stays in sync between the Combat and Supplies pages. Reset restores the demo settings.'})
+notes:Paragraph({Title='What this is not',Body='This prototype has no connection to the game. It does not save settings between sessions or trigger actual automation.'})
+render()
