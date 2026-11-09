@@ -479,9 +479,9 @@ function Library:CreateWindow(options)
                 local frame = row(spec2.Name, spec2.Description, 54)
                 -- The clickable area is larger than the visible switch for touch use.
                 local hit = button(frame, '')
-                hit.AnchorPoint = Vector2.new(1,.5); hit.Position = UDim2.new(1,0,.5,0); hit.Size = UDim2.fromOffset(94,48)
+                hit.Size = UDim2.fromScale(1,1); frame.BackgroundColor3=palette.gold; corner(frame,5)
                 local state = label(hit,'',9,palette.muted,Enum.Font.GothamBold)
-                state.Position=UDim2.fromOffset(0,0); state.Size=UDim2.fromOffset(33,48); state.TextXAlignment=Enum.TextXAlignment.Right
+                state.AnchorPoint=Vector2.new(1,.5); state.Position=UDim2.new(1,-61,.5,0); state.Size=UDim2.fromOffset(33,48); state.TextXAlignment=Enum.TextXAlignment.Right
                 local track = create('Frame',{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-2,.5,0),Size=UDim2.fromOffset(48,25),BackgroundColor3=palette.elevated,BorderSizePixel=0},hit)
                 corner(track,13)
                 local border=create('UIStroke',{Color=palette.line,Transparency=.1,Thickness=1},track)
@@ -498,8 +498,8 @@ function Library:CreateWindow(options)
                     animate(seal,{BackgroundColor3=value and Color3.fromRGB(143,96,46) or Color3.fromRGB(96,86,76)})
                 end
                 local api={}; function api:Set(v,silent) value=v==true; render(); if not silent then fire(spec2.Callback,value) end end; function api:Get() return value end
-                hit.MouseEnter:Connect(function() animate(border,{Transparency=0}) end)
-                hit.MouseLeave:Connect(render)
+                hit.MouseEnter:Connect(function() animate(border,{Transparency=0}); animate(frame,{BackgroundTransparency=.93}) end)
+                hit.MouseLeave:Connect(function() render(); animate(frame,{BackgroundTransparency=1}) end)
                 hit.Activated:Connect(function() api:Set(not value) end)
                 render(); return api
             end
@@ -529,6 +529,7 @@ function Library:CreateWindow(options)
                 local gem=create('Frame',{AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(8,8),Rotation=45,BackgroundColor3=Color3.fromRGB(255,224,167),BorderSizePixel=0},thumb);corner(gem,2)
                 local low=label(frame,tostring(min),10,palette.muted); low.Position=UDim2.new(0,0,1,-14); low.Size=UDim2.fromOffset(55,14)
                 local high=label(frame,tostring(max),10,palette.muted); high.AnchorPoint=Vector2.new(1,0); high.Position=UDim2.new(1,0,1,-14); high.Size=UDim2.fromOffset(55,14); high.TextXAlignment=Enum.TextXAlignment.Right
+                local activeInput
                 local api={}; function api:Set(v,silent)
                     local number=tonumber(v) or min
                     if number~=number or math.abs(number)==math.huge then number=min end
@@ -536,8 +537,13 @@ function Library:CreateWindow(options)
                     nextValue=tonumber(string.format('%.8f',nextValue)) or nextValue
                     local changed=nextValue~=value; value=nextValue; if not amount:IsFocused() then amount.Text=tostring(value) end
                     local fraction=(value-min)/(max-min)
-                    animate(fill,{Size=UDim2.fromScale(fraction,1)}); animate(thumb,{Position=UDim2.fromScale(fraction,.5)})
-                    for _,layer in ipairs(thumbGlow) do animate(layer,{Position=UDim2.fromScale(fraction,.5)}) end
+                    if activeInput then
+                        fill.Size=UDim2.fromScale(fraction,1);thumb.Position=UDim2.fromScale(fraction,.5)
+                        for _,layer in ipairs(thumbGlow) do layer.Position=UDim2.fromScale(fraction,.5) end
+                    else
+                        animate(fill,{Size=UDim2.fromScale(fraction,1)});animate(thumb,{Position=UDim2.fromScale(fraction,.5)})
+                        for _,layer in ipairs(thumbGlow) do animate(layer,{Position=UDim2.fromScale(fraction,.5)}) end
+                    end
                     if changed and not silent then fire(spec2.Callback,value) end
                 end; function api:Get() return value end
                 amount.FocusLost:Connect(function()
@@ -545,7 +551,6 @@ function Library:CreateWindow(options)
                     if entered and entered==entered and math.abs(entered)<math.huge then api:Set(entered) end
                     amount.Text=tostring(value)
                 end)
-                local activeInput
                 local function update(input) api:Set(min+math.clamp((input.Position.X-rail.AbsolutePosition.X)/math.max(rail.AbsoluteSize.X,1),0,1)*(max-min)) end
                 hit.InputBegan:Connect(function(input)
                     if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then activeInput=input; animate(thumb,{Size=UDim2.fromOffset(23,23)}); update(input) end
@@ -602,6 +607,8 @@ function Library:CreateWindow(options)
                     table.clear(items)
                     for index, v in ipairs(values) do
                         local option = button(list,tostring(v)); option.Size=UDim2.new(1,0,0,38); option.LayoutOrder=index; option.TextXAlignment=Enum.TextXAlignment.Left; option.TextSize=12; option.BackgroundColor3=palette.panel; corner(option,4); padding(option,0,8,0,10); items[v]=option
+                        option.MouseEnter:Connect(function() animate(option,{BackgroundTransparency=.25}) end)
+                        option.MouseLeave:Connect(function() refresh() end)
                         option.Activated:Connect(function()
                             if multi then selected[v]=not selected[v] or nil else value=v; setExpanded(false) end
                             refresh(); fire(spec2.Callback,result())
