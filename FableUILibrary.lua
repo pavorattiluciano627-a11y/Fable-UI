@@ -343,9 +343,26 @@ function Library:CreateWindow(options)
         end
     end)
     gui.Destroying:Connect(function() dragConnection:Disconnect(); keyConnection:Disconnect() end)
+    -- Native scrolling stays in control; only the scrollbar responds to movement.
+    local function watchScroll(scroller)
+        local last, waiting = 0, false
+        scroller.ScrollBarImageTransparency=.75
+        scroller:GetPropertyChangedSignal('CanvasPosition'):Connect(function()
+            last=os.clock()
+            animate(scroller,{ScrollBarImageTransparency=.1})
+            if waiting then return end
+            waiting=true
+            task.spawn(function()
+                while scroller.Parent and os.clock()-last<.65 do task.wait(.2) end
+                if scroller.Parent then animate(scroller,{ScrollBarImageTransparency=.75}) end
+                waiting=false
+            end)
+        end)
+    end
     local nav = create('ScrollingFrame', {Position = UDim2.fromOffset(0,58), Size = UDim2.new(0,172,1,-58),
         BackgroundColor3 = palette.sidebar, BackgroundTransparency = .18, BorderSizePixel = 0, ScrollBarThickness = 2, ScrollBarImageColor3 = palette.line,
         AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, root)
+    watchScroll(nav)
     padding(nav, 15, 9, 14, 9)
     create('UIListLayout', {Padding = UDim.new(0,5), SortOrder = Enum.SortOrder.LayoutOrder}, nav)
     local chapter = label(nav, 'THE CHRONICLE', 9, palette.muted, Enum.Font.GothamBold); chapter.Size = UDim2.new(1,0,0,24)
@@ -405,10 +422,12 @@ function Library:CreateWindow(options)
         tab.Nav.BackgroundColor3 = palette.elevated; tab.Nav.BackgroundTransparency = 1; corner(tab.Nav,5)
         tab.Image = icon(tab.Nav, tab.Icon, tab.Name:sub(1,1)); tab.Image.Position = UDim2.fromOffset(9,11); tab.Image.Size = UDim2.fromOffset(17,17)
         tab.Caption = label(tab.Nav, tab.Name, 13, palette.muted); tab.Caption.Position = UDim2.fromOffset(35,0); tab.Caption.Size = UDim2.new(1,-39,1,0); tab.Caption.TextTruncate = Enum.TextTruncate.AtEnd
+        tab.Indicator=create('Frame',{AnchorPoint=Vector2.new(0,.5),Position=UDim2.new(0,0,.5,0),Size=UDim2.fromOffset(3,4),BackgroundColor3=palette.gold,BackgroundTransparency=1,BorderSizePixel=0},tab.Nav);corner(tab.Indicator,2)
         tab.Nav.MouseEnter:Connect(function() if window.Active ~= tab then animate(tab.Nav,{BackgroundTransparency = .5}) end end)
         tab.Nav.MouseLeave:Connect(function() if window.Active ~= tab then animate(tab.Nav,{BackgroundTransparency = 1}) end end)
         tab.Page = create('ScrollingFrame', {Size = UDim2.fromScale(1,1), BackgroundTransparency = 1, BorderSizePixel = 0,
             Visible = false, ScrollBarThickness = 3, ScrollBarImageColor3 = palette.gold, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, content)
+        watchScroll(tab.Page)
         padding(tab.Page, 22, 22, 25, 22)
         create('UIListLayout', {Padding = UDim.new(0,12), SortOrder = Enum.SortOrder.LayoutOrder}, tab.Page)
         local eyebrow = label(tab.Page, spec.Eyebrow or 'FABLE  /  CHAPTER', 10, palette.gold, Enum.Font.GothamBold); eyebrow.Size = UDim2.new(1,0,0,14)
@@ -417,15 +436,22 @@ function Library:CreateWindow(options)
         gradient(flourish,Color3.fromRGB(235,197,136),Color3.fromRGB(30,26,25),0)
         local intro = label(tab.Page, spec.Description or '', 12, palette.muted); intro.TextWrapped = true; intro.Size = UDim2.new(1,0,0,30)
         function window:SelectTab(selected)
+            if not table.find(self.Tabs,selected) then return end
+            local previous = self.Active
             for _, other in ipairs(self.Tabs) do
                 local active = other == selected; other.Page.Visible = active
                 animate(other.Nav, {BackgroundTransparency = active and 0 or 1})
                 animate(other.Caption, {TextColor3 = active and palette.parchment or palette.muted})
                 animate(other.Image, {ImageColor3 = active and palette.gold or palette.muted})
+                animate(other.Indicator,{BackgroundTransparency=active and 0 or 1,Size=UDim2.fromOffset(3,active and 23 or 4)})
             end
             self.Active = selected
-            selected.Page.CanvasPosition = Vector2.new(0,0)
-            selected.Page.ScrollBarImageTransparency = .55
+            if previous ~= selected then
+                local from=table.find(self.Tabs,previous) or 0
+                local to=table.find(self.Tabs,selected) or 0
+                selected.Page.Position=UDim2.fromOffset(options.ReducedMotion and 0 or (to>=from and 14 or -14),0)
+                animate(selected.Page,{Position=UDim2.fromOffset(0,0)})
+            end
         end
         tab.Nav.Activated:Connect(function() window:SelectTab(tab) end)
         table.insert(window.Tabs, tab)
@@ -544,7 +570,7 @@ function Library:CreateWindow(options)
                 local text = label(control,'',11,palette.parchment); text.Position=UDim2.fromOffset(9,0); text.Size=UDim2.new(1,-32,1,0); text.TextTruncate=Enum.TextTruncate.AtEnd
                 local arrow = icon(control,'chevron-down','v'); arrow.AnchorPoint=Vector2.new(1,.5); arrow.Position=UDim2.new(1,-8,.5,0); arrow.Size=UDim2.fromOffset(14,14)
                 local list = create('ScrollingFrame',{Position=UDim2.fromOffset(0,52),Size=UDim2.new(1,0,0,0),BackgroundColor3=palette.elevated,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=palette.gold,AutomaticCanvasSize=Enum.AutomaticSize.Y,CanvasSize=UDim2.new(),Visible=false},frame)
-                corner(list,5); create('UIListLayout',{Padding=UDim.new(0,2),SortOrder=Enum.SortOrder.LayoutOrder},list); padding(list,4,4,4,4)
+                watchScroll(list); corner(list,5); create('UIListLayout',{Padding=UDim.new(0,2),SortOrder=Enum.SortOrder.LayoutOrder},list); padding(list,4,4,4,4)
                 local api, items = {}, {}
                 local function result()
                     if not multi then return value end
@@ -601,9 +627,19 @@ function Library:CreateWindow(options)
                 local bar=create('Frame',{Position=UDim2.fromOffset(0,51),Size=UDim2.new(1,0,0,34),BackgroundColor3=Color3.fromRGB(21,20,21),BorderSizePixel=0},frame);corner(bar,6);stroke(bar,palette.line,.2)
                 create('UIListLayout',{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,3),SortOrder=Enum.SortOrder.LayoutOrder},bar);padding(bar,3,3,3,3)
                 local controls={}
-                local function render() for v,b in pairs(controls) do local active=v==value;animate(b,{BackgroundTransparency=active and 0 or 1,TextColor3=active and palette.parchment or palette.muted}) end end
+                local function render()
+                    for v,entry in pairs(controls) do
+                        local active=v==value
+                        animate(entry.button,{BackgroundTransparency=active and 0 or 1,TextColor3=active and palette.parchment or palette.muted})
+                        animate(entry.line,{Size=UDim2.new(active and .65 or 0,0,0,2),BackgroundTransparency=active and .05 or 1})
+                    end
+                end
                 local api={};function api:Set(v,silent) if not table.find(values,v) then return end;value=v;render();if not silent then fire(spec2.Callback,value) end end;function api:Get() return value end
-                for _,v in ipairs(values) do local b=button(bar,tostring(v));b.Size=UDim2.new(1/#values,-3,1,0);b.TextSize=11;b.TextTruncate=Enum.TextTruncate.AtEnd;b.BackgroundColor3=Color3.fromRGB(105,74,43);corner(b,4);controls[v]=b;b.Activated:Connect(function() api:Set(v) end) end
+                for _,v in ipairs(values) do
+                    local b=button(bar,tostring(v));b.Size=UDim2.new(1/#values,-3,1,0);b.TextSize=11;b.TextTruncate=Enum.TextTruncate.AtEnd;b.BackgroundColor3=Color3.fromRGB(105,74,43);corner(b,4)
+                    local line=create('Frame',{AnchorPoint=Vector2.new(.5,1),Position=UDim2.new(.5,0,1,-1),Size=UDim2.new(0,0,0,2),BackgroundColor3=Color3.fromRGB(255,215,149),BackgroundTransparency=1,BorderSizePixel=0},b);corner(line,1)
+                    controls[v]={button=b,line=line};b.Activated:Connect(function() api:Set(v) end)
+                end
                 render();return api
             end
             function section:ColorPicker(spec2)
@@ -719,19 +755,24 @@ function Library:CreateWindow(options)
             if not self.SubBar then
                 self.SubTabs={}
                 self.SubBar=create('ScrollingFrame',{Name='SubTabs',Size=UDim2.new(1,0,0,43),BackgroundColor3=Color3.fromRGB(24,22,23),BackgroundTransparency=.12,BorderSizePixel=0,ScrollBarThickness=2,ScrollBarImageColor3=palette.gold,ScrollingDirection=Enum.ScrollingDirection.X,AutomaticCanvasSize=Enum.AutomaticSize.X,CanvasSize=UDim2.new()},self.Page)
-                corner(self.SubBar,6);stroke(self.SubBar,palette.line,.35)
+                corner(self.SubBar,6);stroke(self.SubBar,palette.line,.35);watchScroll(self.SubBar)
                 create('UIListLayout',{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder},self.SubBar);padding(self.SubBar,4,4,4,4)
             end
             local sub={Name=subSpec.Name or 'Page',Section=self.Section}
             sub.Button=button(self.SubBar,sub.Name);sub.Button.Size=UDim2.fromOffset(math.clamp(#sub.Name*8+32,90,180),33);sub.Button.TextSize=12;sub.Button.BackgroundColor3=Color3.fromRGB(102,71,42);corner(sub.Button,5)
             sub.Page=create('Frame',{Name='SubPage',Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,Visible=false},self.Page)
             create('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},sub.Page)
+            sub.Scale=create('UIScale',{Scale=1},sub.Page)
             table.insert(self.SubTabs,sub)
             function self:SelectSubTab(selected)
                 if not table.find(self.SubTabs,selected) then return end
                 for _,item in ipairs(self.SubTabs) do
                     local active=item==selected;item.Page.Visible=active
                     animate(item.Button,{BackgroundTransparency=active and 0 or 1,TextColor3=active and palette.parchment or palette.muted})
+                end
+                if self.ActiveSubTab ~= selected and not options.ReducedMotion then
+                    selected.Scale.Scale=.975
+                    TweenService:Create(selected.Scale,TweenInfo.new(.2,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Scale=1}):Play()
                 end
                 self.ActiveSubTab=selected
             end
